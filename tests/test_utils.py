@@ -5,6 +5,7 @@ import numpy as np
 from astropy.coordinates import angular_separation
 from astropy import units as u
 from time import process_time
+from scipy.integrate import quad as scipy_quad
 
 import cosmographi as cg
 
@@ -125,3 +126,11 @@ def test_survey_cross_match():
             )
             <= 1.75 * u.deg
         ), "matched image should contain SN in fov"
+
+
+@pytest.mark.parametrize("mu, s1, s2", [(0.0, 1.0, 2.0), (1.0, 0.5, 0.5), (-1.0, 5.0, 1.0)])
+def test_asym_gauss(mu, s1, s2):
+
+    assert np.isclose(
+        scipy_quad(cg.utils.asym_gauss, -np.inf, np.inf, args=(mu, s1, s2))[0], 1.0, rtol=1e-8
+    )

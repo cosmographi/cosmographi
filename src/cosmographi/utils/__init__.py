@@ -7,6 +7,7 @@ from .helpers import (
     tdp_regression,
     tdp_evaluate,
     cdist,
+    asym_gauss,
 )
 from .sampling import mala, latin_hypercube
 from .integration import mid, quad, log_quad, gauss_rescale_integrate, log_gauss_rescale_integrate
@@ -26,6 +27,7 @@ __all__ = (
     "tdp_regression",
     "tdp_evaluate",
     "cdist",
+    "asym_gauss",
     "mala",
     "latin_hypercube",
     "mid",

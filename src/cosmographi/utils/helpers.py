@@ -176,3 +176,30 @@ def trim_and_pad_batch(wavelengths, transmissions, threshold=0.01):
             trimmed_wave[i, w:] = wavelengths[i, e] + dw[i] * np.arange(1, max_w - w + 1)
 
     return jnp.array(trimmed_wave), jnp.array(trimmed_trans)
+
+
+def asym_gauss(x, mu, sl, sh):
+    """
+    Asymmetric Gaussian formed from two Gaussians attached at their peak.
+
+    Parameters
+    ----------
+    x : jnp.ndarray
+        Where to evaluate the asymmetric Gaussian
+    mu : jnp.ndarray
+        The peak of the asymmetric Gaussian
+    sl : jnp.ndarray
+        The standard deviation for the lower half of the distribution
+    sh : jnp.ndarray
+        The standard deviation for the higher half of the distribution
+    """
+
+    norm = 1 / ((sl + sh) * jnp.sqrt(jnp.pi / 2))
+    return (
+        jnp.where(
+            x < mu,
+            jnp.exp(-0.5 * ((x - mu) / sl) ** 2),
+            jnp.exp(-0.5 * ((x - mu) / sh) ** 2),
+        )
+        * norm
+    )

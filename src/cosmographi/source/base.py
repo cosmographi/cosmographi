@@ -37,11 +37,11 @@ class Source(Module):
 
     @abstractmethod
     def luminosity_density(self, w: jnp.ndarray, *args, **kwargs):
-        raise NotImplementedError("Please use a subclass of BaseSource")
+        raise NotImplementedError("Please use a subclass of Source")
 
     @abstractmethod
     def spectral_flux_density(self, w: jnp.ndarray, *args, **kwargs):
-        raise NotImplementedError("Please use a subclass of BaseSource")
+        raise NotImplementedError("Please use a subclass of Source")
 
 
 class StaticSource(Source):
