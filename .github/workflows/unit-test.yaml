@@ -11,7 +11,6 @@ on:
 
 jobs:
   unit-tests:
-    environment: CI
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -28,15 +27,15 @@ jobs:
           cache: pip
       - name: Install package
         # uv is faster, so use it instead of pip
-        run: uv pip install .[dev]
+        run: uv pip install -e .[dev]
         env:
           # install into system and not venv
           UV_SYSTEM_PYTHON: 1
-      - name: Run the benchmarks
+      - name: Test and benchmark
         uses: CodSpeedHQ/action@v4
         with:
           mode: simulation
-          run: pytest --codspeed --cov tests/
+          run: pytest --codspeed --cov=src tests/
       - name: Code cov
         uses: codecov/codecov-action@v5
         with:
