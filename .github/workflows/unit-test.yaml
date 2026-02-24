@@ -32,8 +32,11 @@ jobs:
         env:
           # install into system and not venv
           UV_SYSTEM_PYTHON: 1
-      - name: Run tests
-        run: pytest --cov tests/
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@v4
+        with:
+          mode: simulation
+          run: pytest --codspeed --cov tests/
       - name: Code cov
         uses: codecov/codecov-action@v5
         with:
