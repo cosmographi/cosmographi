@@ -7,10 +7,17 @@ from .helpers import (
     tdp_regression,
     tdp_evaluate,
     cdist,
-    asym_gauss,
+    sample_near,
 )
-from .sampling import mala, latin_hypercube
-from .integration import mid, quad, log_quad, gauss_rescale_integrate, log_gauss_rescale_integrate
+from .sampling import mala, latin_hypercube, asym_gauss, sample_asym_gauss
+from .integration import (
+    mid,
+    quad,
+    log_quad,
+    gauss_rescale_integrate,
+    log_gauss_rescale_integrate,
+    simps,
+)
 from .interpolation import WLS, gaussian_kernel, RBF_weights, RBF_init, RBF
 from .plots import corner_plot
 from .loading import load_salt2_surface, load_salt2_colour_law
@@ -28,6 +35,8 @@ __all__ = (
     "tdp_evaluate",
     "cdist",
     "asym_gauss",
+    "sample_asym_gauss",
+    "sample_near",
     "mala",
     "latin_hypercube",
     "mid",
@@ -35,6 +44,7 @@ __all__ = (
     "log_quad",
     "gauss_rescale_integrate",
     "log_gauss_rescale_integrate",
+    "simps",
     "WLS",
     "gaussian_kernel",
     "RBF_weights",

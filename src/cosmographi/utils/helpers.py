@@ -3,6 +3,8 @@ import jax
 import numpy as np
 from tqdm import tqdm
 from itertools import combinations_with_replacement
+from astropy.coordinates import offset_by
+import astropy.units as u
 
 
 def midpoints(start, end, num):
@@ -178,28 +180,13 @@ def trim_and_pad_batch(wavelengths, transmissions, threshold=0.01):
     return jnp.array(trimmed_wave), jnp.array(trimmed_trans)
 
 
-def asym_gauss(x, mu, sl, sh):
-    """
-    Asymmetric Gaussian formed from two Gaussians attached at their peak.
+def sample_near(ra, dec, radius_deg, n=1):
+    # Angular separation (theta)
+    theta = np.random.randn(n) * radius_deg * u.deg
 
-    Parameters
-    ----------
-    x : jnp.ndarray
-        Where to evaluate the asymmetric Gaussian
-    mu : jnp.ndarray
-        The peak of the asymmetric Gaussian
-    sl : jnp.ndarray
-        The standard deviation for the lower half of the distribution
-    sh : jnp.ndarray
-        The standard deviation for the higher half of the distribution
-    """
+    # Random position angle (0 to 360 degrees)
+    pa = np.random.rand(n) * 360 * u.deg
 
-    norm = 1 / ((sl + sh) * jnp.sqrt(jnp.pi / 2))
-    return (
-        jnp.where(
-            x < mu,
-            jnp.exp(-0.5 * ((x - mu) / sl) ** 2),
-            jnp.exp(-0.5 * ((x - mu) / sh) ** 2),
-        )
-        * norm
-    )
+    coords = offset_by(ra * u.deg, dec * u.deg, pa, theta)
+
+    return coords[0].deg, coords[1].deg

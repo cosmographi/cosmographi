@@ -1,12 +1,34 @@
 from typing import Optional
-from .base import MagSystem
+
+from caskade import Param, forward, active_cache
+import jax
 import jax.numpy as jnp
+
+from .base import MagSystem
 from ..throughput.base import Throughput
 from ..utils import flux
 
 
 class MagAB(MagSystem):
-    def flux_norm(self, band_i: int, throughput: Throughput):
+    def __init__(self, throughput: Optional[Throughput] = None, name=None):
+        super().__init__(name=name)
+        self.throughput = throughput
+
+    @active_cache
+    @forward
+    def _get_flux_refs(self):
+        bands = jnp.arange(len(self.throughput.bands))
+        # AB magnitude system reference flux in erg/s/cm^2/Hz
+        f_nu = 3631 * 1e-23  # Convert Jy to erg/s/cm^2/Hz
+        nu = flux.nu(self.throughput.w)
+        return jax.vmap(flux.f_lambda_band)(
+            self.throughput.w,
+            flux.f_l(nu, f_nu),
+            jax.vmap(self.throughput.T)(self.throughput.w, bands),
+        )
+
+    @forward
+    def reference_flux(self, band: int):
         """
         Return the normalization flux for the AB magnitude system and given
         throughput. This is computed assuming a flat spectrum in f_nu
@@ -15,60 +37,70 @@ class MagAB(MagSystem):
 
         Parameters
         ----------
-        throughput : Throughput
-            The throughput for which to compute the normalization flux.
+        band : int
+            Index of the filter band to use for the flux normalization calculation.
 
         Returns
         -------
-        flux_norm : jnp.ndarray
-            Normalization flux for each filter in the AB magnitude system in (electrons/s/cm^2).
+        flux_ref : jnp.ndarray
+            Reference flux for the filter in the AB magnitude system in (electrons/s/cm^2).
         """
-        # AB magnitude system normalization flux in erg/s/cm^2/Hz
-        f = 3631 * 1e-23  # Convert Jy to erg/s/cm^2/Hz
-        nu = flux.nu(throughput.w[band_i])[::-1]
-        return flux.f_nu_band(nu, f, throughput.T_nu(nu, band_i))
+        flux_refs = self._get_flux_refs()
+        return flux_refs[band]
 
-    def __call__(self, fluxes: jnp.ndarray, flux_norm: Optional[jnp.ndarray] = None):
+
+class MagZP(MagSystem):
+    def __init__(self, zp=None, gain=None, name=None):
+        super().__init__(name=name)
+        self.zp = Param("zp", zp, shape=(None,), description="Magnitude zero point")
+        self.gain = Param(
+            "gain",
+            gain,
+            shape=(None,),
+            description="Gain conversion factor between fluxes from 10^(-0.4(mag - zp)) to electrons/s/cm^2",
+            units="electrons/ADU",
+        )
+
+    @forward
+    def reference_flux(self, band: int, zp):
         """
-        Convert fluxes to magnitudes using the AB magnitude formula:
-
-        m_AB = -2.5 * log10(flux / flux_norm)
+        Return the reference flux for the zero point magnitude system and given
+        throughput. This is computed using the zero point magnitude (zp) and gain.
 
         Parameters
         ----------
+        band : int
+            Index of the filter band to use for the flux normalization calculation.
+
+        Returns
+        -------
+        flux_ref : jnp.ndarray
+            Reference flux for each filter in the zero point magnitude system in (electrons/s/cm^2).
+        """
+        return 10 ** (0.4 * zp[band])
+
+    @forward
+    def __call__(self, band, fluxes: jnp.ndarray, zp):
+        """
+        Convert fluxes to magnitudes using the typical magnitude formula:
+
+        m = -2.5 * log10(flux / flux_ref)
+
+        where flux_ref is calculated using the zero point magnitude (zp) and gain.
+
+        Parameters
+        ----------
+        band : int
+            Index of the filter band to use for the magnitude conversion.
         fluxes : jnp.ndarray
-            Fluxes in the magnitude system (flux / flux_norm) for each filter.
-        flux_norm : jnp.ndarray, optional
-            Normalization flux for each filter. If not provided, it is assumed
-            that the input fluxes are already normalized (i.e., flux /
-            flux_norm). If provided, the input fluxes will be divided by the
-            normalization flux before converting to magnitudes.
+            Fluxes in the magnitude system (flux / flux_ref) for each filter.
+        zp : jnp.ndarray
+            Zero point magnitudes for each filter.
 
         Returns
         -------
         mags : jnp.ndarray
             Magnitudes corresponding to the input fluxes.
         """
-        if flux_norm is not None:
-            fluxes = fluxes / flux_norm
-        # Convert fluxes to magnitudes using the AB magnitude formula
-        return -2.5 * jnp.log10(fluxes)
-
-    def err(self, fluxes: jnp.ndarray, flux_errs: jnp.ndarray):
-        """
-        Convert flux errors to magnitude errors using error propagation for the AB magnitude formula.
-
-        Parameters
-        ----------
-        fluxes : jnp.ndarray
-            Fluxes in the magnitude system (flux / flux_norm) for each filter.
-        flux_errs : jnp.ndarray
-            Errors on the fluxes in the magnitude system for each filter.
-
-        Returns
-        -------
-        mag_errs : jnp.ndarray
-            Magnitude errors corresponding to the input flux errors.
-        """
-        # Error propagation for m_AB = -2.5 * log10(fluxes)
-        return 2.5 * (flux_errs / fluxes) / jnp.log(10)
+        # Calculate the normalization flux using the zero point magnitude and gain
+        return -2.5 * jnp.log10(fluxes) + zp[band]

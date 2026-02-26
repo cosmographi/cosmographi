@@ -87,13 +87,13 @@ class SALT2_SK16Prior:
 
     def __init__(
         self,
-        survey: Literal["all", "sdss", "ps1", "snls", "high-z"] = "all",
+        survey: Literal["low-z", "sdss", "ps1", "snls", "high-z", "all"] = "all",
         var: Literal["G10", "C11"] = "G10",
     ):
         self.survey = survey
         self.var = var
 
-    def prior(self, x1, c):
+    def prior_density(self, x1, c):
         params = self.SK16parameter[self.var][self.survey]
         c_prior = asym_gauss(c, *params["c"])
         x1_prior = asym_gauss(x1, *params["x1"])

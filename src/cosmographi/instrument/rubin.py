@@ -12,5 +12,14 @@ class RubinObservatory(Instrument):
         name=None,
         **kwargs,
     ):
-        Aeff = jnp.pi * (649 / 2) ** 2  # Effective area of the Rubin Observatory in cm^2
-        super().__init__(throughput, Aeff=Aeff, mag_system=mag_system, name=name, **kwargs)
+        effective_aperture = jnp.pi * (649 / 2) ** 2  # Effective area in cm^2
+        super().__init__(
+            throughput,
+            effective_aperture=effective_aperture,
+            mag_system=mag_system,
+            name=name,
+            read_noise=6.0,  # electrons/pixel
+            dark_current=1.0 / 15,  # electrons/s/pixel
+            pixelscale=0.2,  # arcsec/pixel
+            **kwargs,
+        )

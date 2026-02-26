@@ -35,8 +35,8 @@ def cross_match_survey_circle(
     initial trimming of a massive survey and transient database into a more
     manageable size.
 
-    The result is a list of lists. For every source a list of indices is given
-    which are the indices of the corresponding observations in the survey.
+    The result is a dict mapping each source index to a 1D array of indices
+    of the corresponding observations in the survey.
 
     Parameters
     ----------
@@ -54,6 +54,8 @@ def cross_match_survey_circle(
         Right Ascension coordinate of center of image. (deg)
     survey_dec : np.array
         Declination coordinate of center of image. (deg)
+    survey_fov : float
+        Diameter of circular field of view of survey images. (deg)
     chunk_time : float
         The sources and survey are chunked into blocks of this much time.
         Trimming on a single axis such as time is very fast and can massively
@@ -65,7 +67,7 @@ def cross_match_survey_circle(
     -------
     match_indices : dict[list]
         Matches between sources and survey images. Dict with entry for every
-        source that has oen or more matches (identified by index in original
+        source that has one or more matches (identified by index in original
         array), with elements that are lists of the indices of matching survey
         observations.
     """
@@ -81,14 +83,17 @@ def cross_match_survey_circle(
     )
 
     t_range = np.max(survey_t) - np.min(survey_t)
-    t_chunks = np.linspace(
-        np.min(survey_t), np.max(survey_t) + chunk_time / 100, int(np.ceil(t_range / chunk_time))
-    )
+    n_chunks = max(2, int(np.ceil(t_range / chunk_time)) + 1)
+    t_chunks = np.linspace(np.min(survey_t), np.max(survey_t) + chunk_time / 100, n_chunks)
 
     all_matches = {}
     for tstart, tend in zip(t_chunks[:-1], t_chunks[1:]):
         sel_src = (source_tmax >= tstart) & (source_tmin < tend)  # src with any overlap in window
         sel_srv = (survey_t >= tstart) & (survey_t < tend)  # imgs in window
+
+        # Skip this time chunk if there are no selected sources or survey pointings.
+        if not np.any(sel_src) or not np.any(sel_srv):
+            continue
 
         tree_src = KDTree(coord_src[sel_src])
         tree_srv = KDTree(coord_srv[sel_srv])
@@ -111,8 +116,11 @@ def cross_match_survey_circle(
                 continue
             isrc = int(Nsrc_chunk[i])
             if isrc in all_matches:
-                all_matches[isrc] = np.append(all_matches[isrc], Nsrv_chunk[m])
+                all_matches[isrc].append(Nsrv_chunk[m])
             else:
-                all_matches[isrc] = Nsrv_chunk[m]
+                all_matches[isrc] = [Nsrv_chunk[m]]
+
+    for key in all_matches:
+        all_matches[key] = np.concatenate(all_matches[key])
 
     return all_matches
