@@ -5,11 +5,14 @@ import pytest
 import cosmographi as cg
 
 
-def test_quad_integrate():
+def test_quad_integrate(benchmark_jax):
 
     f = lambda x: x**2
     a = 0.0
     b = 1.0
+
+    benchmark_jax(cg.utils.quad, f, a, b, n=50)
+
     result = cg.utils.quad(f, a, b, n=50)
     expected = 1.0 / 3.0
     assert jnp.isclose(result, expected, rtol=1e-8)
@@ -20,10 +23,21 @@ def test_quad_integrate():
     assert jnp.isclose(log_result, log_expected, rtol=1e-8)
 
 
-def test_gauss_rescale_integrate():
+def test_gauss_rescale_integrate(benchmark_jax):
     f = lambda x: 1 - (x - 1) ** 2
     a = 0.0
     b = 2.0
+
+    benchmark_jax(
+        cg.utils.gauss_rescale_integrate,
+        f,
+        a,
+        b,
+        mu=1.0,
+        sigma=0.5,
+        n=50,
+    )
+
     result = cg.utils.gauss_rescale_integrate(f, a, b, mu=1.0, sigma=0.5, n=50)
     expected = 4.0 / 3.0
     assert jnp.isclose(result, expected, rtol=1e-8)
@@ -51,7 +65,8 @@ def test_integrate_gaussian():
     # assert jnp.abs(res_quad - 1.0) > jnp.abs(res_gauss - 1.0)
 
 
-def test_midpoints():
+def test_midpoints(benchmark_jax):
+    benchmark_jax(cg.utils.midpoints, 0, 1, 2)
     mid = cg.utils.midpoints(0, 1, 2)
     expected = jnp.array([0.25, 0.75])
     assert jnp.allclose(mid, expected, rtol=1e-8)
@@ -63,11 +78,12 @@ def test_midpoints():
 
 @pytest.mark.parametrize("mu1", [0.0, 1.0, -1.0, 2.0])
 @pytest.mark.parametrize("mu2", [-1.0, 0.0, 0.5])
-def test_int_Phi_N(mu1, mu2):
+def test_int_Phi_N(mu1, mu2, benchmark_jax):
     sigma1 = 0.5
     sigma2 = 0.3
     Phi = lambda x: jax.scipy.stats.norm.cdf((x - mu1) / sigma1)
     N = lambda x: jax.scipy.stats.norm.pdf(x, loc=mu2, scale=sigma2)
+    benchmark_jax(cg.utils.int_Phi_N, mu1, sigma1, mu2, sigma2)
     res_quad = cg.utils.quad(lambda x: Phi(x) * N(x), -10, 10, 1000)
     res_int = cg.utils.int_Phi_N(mu1, sigma1, mu2, sigma2)
     assert jnp.isclose(res_quad, jnp.exp(res_int), rtol=1e-8)
