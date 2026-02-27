@@ -11,7 +11,7 @@ class MagSystem(Module):
             "Ze",
             Ze,
             shape=(None,),
-            description="Electron zero point, conversion factor to take magnitudes into fluxes of electrons/s. Sometimes called instrumental zeropoint.",
+            description="Electron zero point, conversion factor to take magnitudes into fluxes of electrons/s. Sometimes called instrumental zeropoint or instrumental magnitude.",
             units="emags",
         )
 

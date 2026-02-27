@@ -10,8 +10,8 @@ from ..utils import flux
 
 
 class MagAB(MagSystem):
-    def __init__(self, throughput: Optional[Throughput] = None, name=None):
-        super().__init__(name=name)
+    def __init__(self, throughput: Optional[Throughput] = None, name=None, **kwargs):
+        super().__init__(name=name, **kwargs)
         self.throughput = throughput
 
     @active_cache
@@ -50,8 +50,8 @@ class MagAB(MagSystem):
 
 
 class MagZP(MagSystem):
-    def __init__(self, zp=None, gain=None, name=None):
-        super().__init__(name=name)
+    def __init__(self, zp=None, gain=None, name=None, **kwargs):
+        super().__init__(name=name, **kwargs)
         self.zp = Param("zp", zp, shape=(None,), description="Magnitude zero point")
         self.gain = Param(
             "gain",

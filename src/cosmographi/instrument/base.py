@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-from caskade import Module, Param, forward
+from caskade import Module, forward
 
 from ..throughput import Throughput
 from ..magsystem import MagSystem
@@ -26,10 +26,8 @@ class Instrument(Module):
         self,
         throughput: Throughput,
         mag_system: MagSystem,
-        sky_brightness=None,
-        PSF_Aeff=None,
-        dark_current=None,
-        read_noise=None,
+        dark_current=0.0,
+        read_noise=0.0,
         effective_aperture=None,
         pixelscale=None,
         fov=None,
@@ -38,35 +36,9 @@ class Instrument(Module):
         super().__init__(name=name)
         self.throughput = throughput
         self.mag_system = mag_system
-        self.sky_brightness = Param(
-            "sky_brightness",
-            sky_brightness,
-            shape=(None,),
-            description="Sky brightness in mag/arcsec^2",
-            units="mag/arcsec^2",
-        )
-        self.PSF_Aeff = Param(
-            "PSF_Aeff",
-            PSF_Aeff,
-            shape=(None,),
-            description="Effective area of the PSF",
-            units="arcsec^2",
-        )
-        self.dark_current = Param(
-            "dark_current",
-            dark_current,
-            shape=(),
-            description="Rate of electrons that accumulate in a pixel while dark",
-            units="electrons/s/pixel",
-        )
-        self.read_noise = Param(
-            "read_noise",
-            read_noise,
-            shape=(),
-            description="Standard deviation of electron counts per pixel",
-            units="RMS electrons/pixel",
-        )
-        self.effective_aperture = effective_aperture  # Effective aperture size in cm^2
+        self.dark_current = dark_current  # Rate of electrons that accumulate in a pixel while dark, in electrons/s/pixel
+        self.read_noise = read_noise  # Standard deviation of electron counts per pixel due to readout noise, in RMS electrons/pixel
+        self.effective_aperture = effective_aperture  # Effective telescope aperture size in cm^2
         self.pixelscale = pixelscale  # Pixel scale in arcsec/pixel
         self.fov = fov
 
@@ -143,9 +115,7 @@ class Instrument(Module):
         return E / norm, E / norm**2
 
     @forward
-    def observation_var(
-        self, band, exp_time, sky_brightness, PSF_Aeff, dark_current, read_noise
-    ) -> float:
+    def observation_var(self, band, exp_time, sky_brightness, PSF_Aeff) -> float:
         """
         Return the variance on an observation of a source. The variance is
         computed as the expected number of electrons from the noise source.
@@ -153,23 +123,25 @@ class Instrument(Module):
         Returns
         -------
         var : float
-            The variance on an observation of a point source in electrons.
+            The variance on an observation of a point source in electron counts.
         """
         # Sky brightness noise in electrons
-        sky_flux = self.mag_system.mag_to_electron_flux(band, sky_brightness[band] * PSF_Aeff[band])
+        sky_flux = self.mag_system.mag_to_electron_flux(band, sky_brightness * PSF_Aeff)
         sky_Ne = sky_flux * exp_time
 
         # Dark current noise in electrons
-        PSF_pixel_Aeff = PSF_Aeff[band] / self.pixelscale**2  # Effective area of the PSF in pixels
-        dark_Ne = dark_current * exp_time * PSF_pixel_Aeff
+        PSF_pixel_Aeff = PSF_Aeff / self.pixelscale**2  # Effective area of the PSF in pixels
+        dark_Ne = self.dark_current * exp_time * PSF_pixel_Aeff
 
         # Read noise in electrons
-        read_Ne = read_noise**2 * PSF_pixel_Aeff
+        read_Ne = self.read_noise**2 * PSF_pixel_Aeff
 
         return sky_Ne + dark_Ne + read_Ne
 
     @forward
-    def observe(self, key, band, exp_time, source: Source, *args, **kwargs):
+    def observe(
+        self, key, band, exp_time, sky_brightness, PSF_Aeff, source: Source, *args, **kwargs
+    ):
         """
         Create a mock observation of a source through the instrument's
         throughput, including noise.
@@ -181,7 +153,11 @@ class Instrument(Module):
         band : int
             Index of the filter band to use for the observation.
         exp_time : float
-            Exposure time in seconds.
+            Image exposure time in seconds.
+        sky_brightness : float
+            Sky brightness in mag/arcsec^2.
+        PSF_Aeff : float
+            Effective area of the PSF in arcsec^2.
         source : BaseSource
             The source to observe.
         *args, **kwargs
@@ -217,13 +193,15 @@ class Instrument(Module):
         with comments that explain the exact process.
         """
         # True flux in electrons/s/cm^2
-        flux = self.flux(band, exp_time, source, *args, **kwargs)
+        flux = self.flux(band, source, *args, **kwargs)
         # Scale factor between flux and number of electrons
         norm = exp_time * self.effective_aperture
 
         N = flux * norm  # Expected number of electrons
         Ve = jnp.abs(N)  # Flux error in electrons
-        Vnoise = self.observation_var(exp_time)  # Total noise variance in electrons
+        Vnoise = self.observation_var(
+            band, exp_time, sky_brightness, PSF_Aeff
+        )  # Total noise variance in electrons
 
         noise = jax.random.normal(key, shape=flux.shape)
         Nobs = N + noise * jnp.sqrt(Ve + Vnoise)  # Observed number of electrons with noise

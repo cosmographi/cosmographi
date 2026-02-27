@@ -28,22 +28,15 @@ def test_blackbody(T):
     )
 
 
-@pytest.mark.parametrize(
-    "x0, x1",
-    [
-        (0.1, 0.5),
-        (1.0, -0.5),
-        (10, 0.0),
-    ],
-)
-def test_salt2_2021(x0, x1):
+@pytest.mark.parametrize("x1", [0.5, -0.5, 0.0])
+def test_salt2_2021(x1):
     c = 0.0
     # Test that the SALT2_2021 source produces a light curve consistent with sncosmo's SALT2 model
     C = cp.Cosmology()
     z = root(lambda z: C.luminosity_distance(z) - 1e-5, 1e-9).x[
         0
     ]  # Find redshift corresponding to 10 pc
-    S = cp.SALT2_2021(cosmology=C, z=z, x0=x0, x1=x1, c=c, t0=0.0)
+    S = cp.SALT2_2021(cosmology=C, z=z, x1=x1, c=c, t0=0.0)
     S.CL.to_static()
     S.M.to_static()
     S.load_salt2_model()
@@ -51,7 +44,7 @@ def test_salt2_2021(x0, x1):
     # Get sncosmo's SALT2 model
     source = sncosmo.get_source("salt2", version="T21")
     model = sncosmo.Model(source=source)
-    model.set(z=z, t0=0.0, x0=x0, x1=x1, c=c)
+    model.set(z=z, t0=0.0, x0=1.0, x1=x1, c=c)
     w = jnp.linspace(
         model.minwave() * 1.1, model.maxwave() * 0.9, 500
     )  # Wavelengths in Angstroms (observer frame)
@@ -87,6 +80,6 @@ def test_salt2_2021(x0, x1):
 
     # Note, we use pretty loose atol=0.1 since there are different interpolation schemes used
     # The values are of order 1 so 0.1 just checks gross agreement, not exact agreement
-    assert np.allclose(np.array(sfd_cp) / x0, sfd_sncosmo / x0, atol=0.1), (
+    assert np.allclose(np.array(sfd_cp), sfd_sncosmo, atol=0.1), (
         "Spectral Flux Density from SALT2_2021 should match sncosmo's SALT2 model."
     )

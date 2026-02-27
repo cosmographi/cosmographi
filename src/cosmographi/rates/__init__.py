@@ -1,5 +1,5 @@
-from .base import BaseSNRate
-from .rates import SNRateConst, SNRateInterp
-from .combined import CombinedSNRate
+from .base import Rate
+from .rates import RateConst, RateInterp
+from .combined import CombinedRate
 
-__all__ = ("BaseSNRate", "SNRateConst", "SNRateInterp", "CombinedSNRate")
+__all__ = ("Rate", "RateConst", "RateInterp", "CombinedRate")

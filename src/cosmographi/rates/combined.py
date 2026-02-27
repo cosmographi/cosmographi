@@ -1,12 +1,12 @@
 from typing import List
 import jax
 import jax.numpy as jnp
-from .base import BaseSNRate
+from .base import Rate
 from caskade import forward
 
 
-class CombinedSNRate(BaseSNRate):
-    def __init__(self, sn_rates: List[BaseSNRate], **kwargs):
+class CombinedRate(Rate):
+    def __init__(self, sn_rates: List[Rate], **kwargs):
         super().__init__(**kwargs)
         self.sn_rates = sn_rates
 

@@ -8,6 +8,7 @@ from .helpers import (
     tdp_evaluate,
     cdist,
     sample_near,
+    bandstr_to_bandidx,
 )
 from .sampling import mala, latin_hypercube, asym_gauss, sample_asym_gauss
 from .integration import (
@@ -37,6 +38,7 @@ __all__ = (
     "asym_gauss",
     "sample_asym_gauss",
     "sample_near",
+    "bandstr_to_bandidx",
     "mala",
     "latin_hypercube",
     "mid",
