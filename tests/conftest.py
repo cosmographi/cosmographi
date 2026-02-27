@@ -8,7 +8,8 @@ from pytest_codspeed import BenchmarkFixture
 def pedanticWrapper(benchmark_fixture):
 
     def pedanticWrapperInner(target: Callable, *args, **kwargs):
-        """Wrap the JAX function in a lambda with args and kwargs and run with warmup and async dispatch check.
+        """Wrap the JAX function in a lambda with args and kwargs and
+        run with warmup and async dispatch check.
         See https://docs.jax.dev/en/latest/benchmarking.html
 
         Parameters

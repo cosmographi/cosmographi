@@ -4,7 +4,7 @@ import pytest
 
 
 @pytest.mark.parametrize("air_mass", [0.9, 1.0, 1.2])
-def test_MagAB(air_mass):
+def test_MagAB(air_mass, benchmark_jax):
     mag_system = cp.MagAB()
     T = cp.RubinThroughput(air_mass=air_mass)
     C = cp.Cosmology()
@@ -12,6 +12,7 @@ def test_MagAB(air_mass):
     flux_norm = mag_system.flux_norm(0, T)
     f = BB.spectral_flux_density(T.w[0])
     F = cp.utils.flux.f_lambda_band(T.w[0], f, T.T(T.w[0], 0))
+    benchmark_jax(mag_system, F, flux_norm)
     mag = mag_system(F, flux_norm)
     assert jnp.isclose(mag, 29.80607931, atol=1e-2, rtol=0), (
         "AB magnitude of T=5000K blackbody should be 29.80607931."

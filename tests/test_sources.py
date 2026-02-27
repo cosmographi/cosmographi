@@ -10,11 +10,12 @@ from astropy import units as u
 
 
 @pytest.mark.parametrize("T", [1000, 5000, 15000])
-def test_blackbody(T):
+def test_blackbody(T, benchmark_jax):
     z = 0.1
     C = cp.Cosmology()
     S = cp.StaticBlackbody(cosmology=C, T=T, R=1, N=1, z=z)
     w = jnp.linspace(100, 2000, 100)  # Wavelengths in nm
+    benchmark_jax(S.spectral_flux_density_frequency, cp.utils.flux.nu(w))
     sfd_cp = S.spectral_flux_density_frequency(cp.utils.flux.nu(w))  # in units of erg/s/cm^2/Hz
 
     # Astropy blackbody
@@ -36,7 +37,7 @@ def test_blackbody(T):
         (10, 0.0),
     ],
 )
-def test_salt2_2021(x0, x1):
+def test_salt2_2021(x0, x1, benchmark):
     c = 0.0
     # Test that the SALT2_2021 source produces a light curve consistent with sncosmo's SALT2 model
     C = cp.Cosmology()
@@ -46,6 +47,7 @@ def test_salt2_2021(x0, x1):
     S = cp.SALT2_2021(cosmology=C, z=z, x0=x0, x1=x1, c=c, t0=0.0)
     S.CL.to_static()
     S.M.to_static()
+    benchmark(S.load_salt2_model)
     S.load_salt2_model()
 
     # Get sncosmo's SALT2 model

@@ -1,10 +1,14 @@
+import pytest
 import jax.numpy as jnp
+
 from cosmographi.throughput import RubinThroughput
 from cosmographi.utils import flux
 
 
-def test_ABMag_consistency():
+def test_ABMag_consistency(benchmark):
     f = 3631 * 1e-23  # Convert Jy to erg/s/cm^2/Hz
+
+    benchmark(RubinThroughput)
 
     throughput = RubinThroughput()
 
@@ -20,6 +24,7 @@ def test_ABMag_consistency():
         )
 
 
+@pytest.mark.benchmark
 def test_f_round_trip():
     # Test that converting from f_nu to f_lambda and back gives the original value
     w = jnp.linspace(200, 1000, 800)  # Wavelengths in nm
@@ -34,6 +39,7 @@ def test_f_round_trip():
     )
 
 
+@pytest.mark.benchmark
 def test_redshift_conversions():
     # Test that converting from rest to observer frame and back gives the original value
     w_rest = jnp.array([400, 500, 600])  # Rest frame wavelengths in nm
@@ -59,11 +65,13 @@ def test_redshift_conversions():
     )
 
 
-def test_f_lambda_redshift():
+def test_f_lambda_redshift(benchmark_jax):
     # Test that f_lambda correctly accounts for redshift effects
     z = 0.5
     DL = 1000  # Luminosity distance in Mpc
     LD = jnp.array([1e40, 1e41, 1e42])  # Luminosity density in erg/s/nm
+
+    benchmark_jax(flux.f_lambda, z, DL, LD)
 
     f_obs = flux.f_lambda(z, DL, LD)
 

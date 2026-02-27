@@ -6,6 +6,7 @@ from astropy.cosmology import wCDM
 import pytest
 
 
+@pytest.mark.benchmark
 @pytest.mark.parametrize(
     "Omega_m, Omega_k, H0, w0",
     [
