@@ -50,6 +50,7 @@ dev = [
         "pytest-cov>=4.1,<5",
         "pytest-mock>=3.12,<4",
         "pre-commit>=3.6,<4",
+        "pytest-codspeed>=4.3.0",
         "ruff>=0.15.0",
         "sncosmo==2.12.1",
 ]
