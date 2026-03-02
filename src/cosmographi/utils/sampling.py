@@ -103,3 +103,44 @@ def latin_hypercube(m, n, d, bounds=None, seed=None):
     if bounds is not None:
         lhs = lhs * (bounds[1] - bounds[0]) + bounds[0]
     return jnp.array(lhs)
+
+
+def asym_gauss(x, mu, sigma_left, sigma_right):
+    """
+    Asymmetric Gaussian formed from two Gaussians attached at their peak.
+
+    Parameters
+    ----------
+    x : jnp.ndarray
+        Where to evaluate the asymmetric Gaussian
+    mu : jnp.ndarray
+        The peak of the asymmetric Gaussian
+    sigma_left : jnp.ndarray
+        The standard deviation for the lower half of the distribution
+    sigma_right : jnp.ndarray
+        The standard deviation for the higher half of the distribution
+    """
+
+    norm = 1 / ((sigma_left + sigma_right) * jnp.sqrt(jnp.pi / 2))
+    return (
+        jnp.where(
+            x < mu,
+            jnp.exp(-0.5 * ((x - mu) / sigma_left) ** 2),
+            jnp.exp(-0.5 * ((x - mu) / sigma_right) ** 2),
+        )
+        * norm
+    )
+
+
+def sample_asym_gauss(mu, sigma_left, sigma_right, n):
+    """
+    Sample from an asymmetric Gaussian distribution with mean `mu`, left std `sigma_left`, and right std `sigma_right`.
+    """
+
+    p_low = sigma_left / (sigma_left + sigma_right)
+    low_mask = np.random.rand(n) < p_low
+    abs_vals = np.abs(np.random.randn(n))
+    samples = np.zeros(n)
+    samples[low_mask] = mu - abs_vals[low_mask] * sigma_left
+    samples[~low_mask] = mu + abs_vals[~low_mask] * sigma_right
+    return np.array(samples)

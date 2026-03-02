@@ -95,3 +95,24 @@ def log_gauss_rescale_integrate(log_f, a, b, mu, sigma, n=100, args=(), argnum=0
         return log_f(*args[:argnum], x(y), *args[argnum:]) - n
 
     return log_quad(integrand, y(a), y(b), n=n)
+
+
+def simps(y, dx):
+    """
+    Simple implementation of Simpson's rule for numerical integration.
+
+    Parameters
+    ----------
+    y : array-like
+        The function values at the sample points. Must have an odd number of points.
+    dx : float
+        The spacing between the sample points.
+
+    Returns
+    -------
+    float
+        The approximate integral of the function over the interval defined by the sample points.
+    """
+    if len(y) % 2 == 0:
+        raise ValueError("Simpson's rule requires an odd number of points.")
+    return (dx / 3) * (y[0] + 4 * jnp.sum(y[1:-1:2]) + 2 * jnp.sum(y[2:-2:2]) + y[-1])

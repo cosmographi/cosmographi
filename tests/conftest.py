@@ -1,6 +1,7 @@
 from typing import Callable
 
 import pytest
+import jax
 
 from pytest_codspeed import BenchmarkFixture
 
@@ -21,7 +22,7 @@ def pedanticWrapper(benchmark_fixture):
            kwargs : Dict
                The kwargs to ``target``.
         """
-        _target = lambda: target(*args, **kwargs).block_until_ready()
+        _target = lambda: jax.block_until_ready(target(*args, **kwargs))
 
         return benchmark_fixture.pedantic(target=_target, rounds=1, warmup_rounds=5, iterations=50)
 

@@ -104,6 +104,8 @@ class Cosmology(Module):
         # return jnp.interp(z, _z, DC)
         integrand = lambda z: c_km / self.H(z)
         return quad(integrand, 0.0, z, n=20)
+        # z_ = jnp.linspace(0, z, 21)
+        # return simps(y=c_km / self.H(z_), dx=z / 20)
 
     @forward
     def transverse_comoving_distance(

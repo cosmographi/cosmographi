@@ -1,14 +1,14 @@
 import jax
 import jax.numpy as jnp
-from caskade import Module, forward
+from caskade import Module, active_cache, forward
 
 from ..cosmology import Cosmology
-from ..utils import quad
+from ..utils import quad, simps
 
 
-class BaseSNRate(Module):
+class Rate(Module):
     """
-    Base class for supernova rate modules.
+    Base class for event rate modules.
     """
 
     def __init__(
@@ -22,13 +22,13 @@ class BaseSNRate(Module):
 
     def rate_density(self, z):
         """
-        Calculate the supernova rate density at redshift z.
+        Calculate the event rate density at redshift z.
         """
         raise NotImplementedError("Subclasses must implement the rate_density method.")
 
     def rate(self, z1, z2):
         """
-        Calculate the rate of supernovae per year between redshifts z1 and z2.
+        Calculate the rate of events per year between redshifts z1 and z2.
         """
         # z = jnp.linspace(z1, z2, 1000)
         # rate_density = self.rate_density(z)
@@ -40,39 +40,38 @@ class BaseSNRate(Module):
 
     def expectation(self, z1, z2, t):
         """
-        Calculate the expected number of supernovae between redshifts z1 and z2 over time t.
+        Calculate the expected number of events between redshifts z1 and z2 over time t.
         """
         rate = self.rate(z1, z2)
         return rate * t
 
+    @active_cache
     @forward
     def _P(self):
-        z = jnp.linspace(self.z_min, self.z_max, 10000)
+        z = jnp.linspace(self.z_min, self.z_max, 1001)
         rate_density = self.rate_density(z)
         vdcv = jax.vmap(self.cosmology.differential_comoving_volume)
         dVdz = vdcv(z)
         rate = self.solid_angle * rate_density * dVdz
-        P = rate / jnp.trapezoid(rate, z)
+        P = rate / simps(rate, z[1] - z[0])
         return z, P
 
     @forward
     def logPz(self, z):
-        # z_vals, p_vals = self._P()
-        # return jnp.log(jnp.interp(z, z_vals, p_vals) + 1e-10)
-        rate = lambda z: self.rate_density(z) * self.cosmology.differential_comoving_volume(z)
-        return jnp.log(rate(z) / quad(rate, self.z_min, self.z_max, n=20) + 1e-10)
+        z_vals, p_vals = self._P()
+        return jnp.log(jnp.interp(z, z_vals, p_vals) + 1e-10)
 
     @forward
-    def CDF(self):
-        z_vals, p_vals = self._P()
-        dz = z_vals[1] - z_vals[0]
-        return z_vals, jnp.cumsum(p_vals) * dz
+    def CDF(self):  # Fixme, think about first element of CDF, should it be 0?
+        z, p = self._P()
+        dz = z[1] - z[0]
+        return z, jnp.cumsum(p) * dz
 
     @forward
     def sample_z(self, key, shape):
         """
-        Sample supernovae redshift from the rate distribution.
+        Sample event redshift from the rate distribution.
         """
-        z_vals, cdf = self.CDF()
+        z, cdf = self.CDF()
         u = jax.random.uniform(key, shape)
-        return jnp.interp(u, cdf, z_vals)
+        return jnp.interp(u, cdf, z)

@@ -23,17 +23,21 @@ def test_distances(Omega_m, Omega_k, H0, w0):
     z = jnp.linspace(0, 10, 1000)
 
     assert jnp.allclose(
-        jax.vmap(cg_cosmo.comoving_distance)(z), ap_cosmo.comoving_distance(z), rtol=1e-8
+        jax.vmap(cg_cosmo.comoving_distance)(z), ap_cosmo.comoving_distance(z), rtol=1e-9, atol=0
     )
 
     assert jnp.allclose(
-        jax.vmap(cg_cosmo.luminosity_distance)(z), ap_cosmo.luminosity_distance(z), rtol=1e-8
+        jax.vmap(cg_cosmo.luminosity_distance)(z),
+        ap_cosmo.luminosity_distance(z),
+        rtol=1e-9,
+        atol=0,
     )
 
     assert jnp.allclose(
         jax.vmap(cg_cosmo.angular_diameter_distance)(z),
         ap_cosmo.angular_diameter_distance(z),
-        rtol=1e-8,
+        rtol=1e-9,
+        atol=0,
     )
 
     z = jnp.linspace(0, 10, 10)
@@ -43,4 +47,5 @@ def test_distances(Omega_m, Omega_k, H0, w0):
         V_cg,
         V_ap,
         rtol=1e-8,
+        atol=0,
     )

@@ -1,5 +1,5 @@
 from caskade import Module
-from ..throughput import Filters
+from ..throughput import Throughput
 
 
 class BaseSurvey(Module):
@@ -14,7 +14,7 @@ class BaseSurvey(Module):
     attributes.
     """
 
-    def __init__(self, filters: Filters, name=None):
+    def __init__(self, filters: Throughput, name=None):
         super().__init__(name)
         self.filters = filters
 
@@ -27,5 +27,5 @@ class TimeDomainSurvey(BaseSurvey):
     observations, such as sampling observation times.
     """
 
-    def __init__(self, filters: Filters, name=None):
+    def __init__(self, filters: Throughput, name=None):
         super().__init__(filters, name)

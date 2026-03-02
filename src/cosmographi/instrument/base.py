@@ -1,6 +1,6 @@
 import jax
 import jax.numpy as jnp
-from caskade import Module
+from caskade import Module, forward
 
 from ..throughput import Throughput
 from ..magsystem import MagSystem
@@ -26,101 +26,81 @@ class Instrument(Module):
         self,
         throughput: Throughput,
         mag_system: MagSystem,
-        Aeff=None,
+        dark_current=0.0,
+        read_noise=0.0,
+        effective_aperture=None,
+        pixelscale=None,
         fov=None,
         name=None,
     ):
         super().__init__(name=name)
         self.throughput = throughput
         self.mag_system = mag_system
-        self.Aeff = Aeff  # Effective aperture size in cm^2
+        self.dark_current = dark_current  # Rate of electrons that accumulate in a pixel while dark, in electrons/s/pixel
+        self.read_noise = read_noise  # Standard deviation of electron counts per pixel due to readout noise, in RMS electrons/pixel
+        self.effective_aperture = effective_aperture  # Effective telescope aperture size in cm^2
+        self.pixelscale = pixelscale  # Pixel scale in arcsec/pixel
         self.fov = fov
 
-    def _observe_spectrum(self, band_i, source: Source, *args, **kwargs):
-        return source.spectral_flux_density(self.throughput.w[band_i], *args, **kwargs)
+    def _observe_spectrum(self, band, source: Source, *args, **kwargs):
+        return source.spectral_flux_density(self.throughput.w[band], *args, **kwargs)
 
-    def electron_flux(self, band_i, source: Source, *args, **kwargs):
+    @forward
+    def flux(self, band, source: Source, *args, **kwargs):
         """
-        Return the flux of a source observed through the instrument's throughput.
-        The result is provided in electrons/s/cm^2 rather than being normalized by a magnitude system.
+        Return the flux of a source observed through the instrument's
+        throughput. The result is provided in electrons/s/cm^2 rather than being
+        normalized by a magnitude system.
 
         Parameters
         ----------
-        band_i : int
+        band : int
             Index of the filter band to use for the flux calculation.
         source : BaseSource
             The source for which to calculate the flux.
         *args, **kwargs
-            Additional arguments to pass to the source's spectral_flux_density method. Note that the wavelength argument (w) is provided by the Throughput object and should not be passed in by the user.
+            Additional arguments to pass to the source's spectral_flux_density
+            method. Note that the wavelength argument
 
         Returns
         -------
         flux : float
-            The observed flux of the source through the specified filter, in electrons/s/cm^2.
+            The observed flux of the source through the specified filter in
+            electrons/s/cm^2, given the observing conditions.
         """
-        f = self._observe_spectrum(band_i, source, *args, **kwargs)
-        w = self.throughput.w[band_i]
-        F = flux.f_lambda_band(w, f, self.throughput.T(w, band_i))
+        f = self._observe_spectrum(band, source, *args, **kwargs)
+        w = self.throughput.w[band]
+        F = flux.f_lambda_band(w, f, self.throughput.T(band, w))
         return F
 
-    def flux_var(self, band_i, exp_time, source: Source, *args, **kwargs):
+    @forward
+    def observation_var(self, band, exp_time, sky_brightness, PSF_Aeff) -> float:
         """
-        Return the flux and its measurement variance of a source observed through the instrument's throughput.
-
-        Parameters
-        ----------
-        band_i : int
-            Index of the filter band to use for the flux error calculation.
-        exp_time : float
-            Exposure time in seconds.
-        source : BaseSource
-            The source for which to calculate the flux error.
-        *args, **kwargs
-            Additional arguments to pass to the source's spectral_flux_density method. Note that the wavelength argument (w) is provided by the Throughput object and should not be passed in by the user.
+        Return the variance on an observation of a source. The variance is
+        computed as the expected number of electrons from the noise source.
 
         Returns
         -------
-        flux : float
-            The observed flux of the source through the specified filter, normalized by the magnitude system's reference flux.
         var : float
-            The variance on the observed flux of the source through the specified filter, normalized by the magnitude system's reference flux.
+            The variance on an observation of a point source in electron counts.
         """
-        F = self.electron_flux(band_i, source, *args, **kwargs)
-        norm = self.mag_system.flux_norm(band_i, self.throughput)
-        return (
-            F / norm,  # Aeff and exp_time cancel
-            F / self.Aeff / exp_time / norm**2,
-        )
+        # Sky brightness noise in electrons
+        sky_flux = self.mag_system.mag_to_electron_flux(band, sky_brightness * PSF_Aeff)
+        sky_Ne = sky_flux * exp_time
 
-    def flux(self, band_i, source: Source, *args, **kwargs):
-        """
-        Return the flux of a source observed through the instrument's throughput.
-        The result is normalized (flux / flux_ref) in the magnitude system provided.
+        # Dark current noise in electrons
+        PSF_pixel_Aeff = PSF_Aeff / self.pixelscale**2  # Effective area of the PSF in pixels
+        dark_Ne = self.dark_current * exp_time * PSF_pixel_Aeff
 
-        Parameters
-        ----------
-        band_i : int
-            Index of the filter band to use for the flux calculation.
-        source : BaseSource
-            The source for which to calculate the flux.
-        *args, **kwargs
-            Additional arguments to pass to the source's spectral_flux_density method. Note that the wavelength argument (w) is provided by the Throughput object and should not be passed in by the user.
+        # Read noise in electrons
+        read_noise = self.read_noise**2 * PSF_pixel_Aeff
 
-        Returns
-        -------
-        flux : float
-            The observed flux of the source through the specified filter, normalized by the magnitude system's reference flux.
-        """
-        F = self.electron_flux(band_i, source, *args, **kwargs)
-        norm = self.mag_system.flux_norm(band_i, self.throughput)
-        return F / norm
+        return sky_Ne + dark_Ne, read_noise
 
-    def mag(self, source: Source, *args, **kwargs):
-        F = self.flux(source, *args, **kwargs)
-        mags = self.mag_system(F)
-        return mags
-
-    def observe(self, key, band_i, exp_time, source: Source, *args, **kwargs):
+    @forward
+    def observe(
+        self, key, band, exp_time, sky_brightness, PSF_Aeff, source: Source, *args, **kwargs
+    ):
         """
         Create a mock observation of a source through the instrument's
         throughput, including noise.
@@ -129,10 +109,14 @@ class Instrument(Module):
         ----------
         key : jax.random.PRNGKey
             Random key for generating noise in the observation.
-        band_i : int
+        band : int
             Index of the filter band to use for the observation.
         exp_time : float
-            Exposure time in seconds.
+            Image exposure time in seconds.
+        sky_brightness : float
+            Sky brightness in mag/arcsec^2.
+        PSF_Aeff : float
+            Effective area of the PSF in arcsec^2.
         source : BaseSource
             The source to observe.
         *args, **kwargs
@@ -167,18 +151,22 @@ class Instrument(Module):
         true number of expected electrons. If this is not clear, see the code
         with comments that explain the exact process.
         """
-        # True flux, and true flux uncertainty in the magnitude system (flux / flux_ref)
-        flux, flux_var = self.flux_var(band_i, exp_time, source, *args, **kwargs)
-        # Scale factor between flux in magnitude system and number of electrons
-        norm = self.mag_system.flux_norm(band_i, self.throughput)
-        scale = exp_time * self.Aeff * norm
+        # True flux in electrons/s/cm^2
+        flux = self.flux(band, source, *args, **kwargs)
+        # Scale factor between flux and number of electrons
+        norm = exp_time * self.effective_aperture
 
-        N = flux * scale  # Expected number of electrons
-        Ne = jnp.sqrt(jnp.abs(flux_var)) * scale  # Flux error in electrons
+        N = flux * norm  # Expected number of electrons
+        Ve = jnp.abs(N)  # Flux error in electrons
+        # Non-source contributions to noise variance in electrons
+        Vbkg, Vread = self.observation_var(band, exp_time, sky_brightness, PSF_Aeff)
 
+        # Observed number of electrons with noise
         noise = jax.random.normal(key, shape=flux.shape)
-        Nobs = N + noise * Ne  # Observed number of electrons with noise
+        Nobs = N + noise * jnp.sqrt(Ve + Vbkg + Vread)
 
-        flux_obs = Nobs / scale  # Convert back to flux units
-        flux_err_obs = jnp.sqrt(jnp.abs(Nobs)) / scale  # Measured flux uncertainty
-        return flux_obs, flux_err_obs, flux, jnp.sqrt(flux_var)
+        flux_obs = Nobs / norm  # Convert back to flux units
+        # Measured flux uncertainty, set floor at Vread since typical variance plane
+        # values are: Nelectrons + Vread, plus further calibration not modelled here
+        flux_err_obs = jnp.sqrt(jnp.clip(Nobs + Vbkg + Vread, min=Vread)) / norm
+        return flux_obs, flux_err_obs, flux, jnp.sqrt(Ve + Vbkg + Vread) / norm

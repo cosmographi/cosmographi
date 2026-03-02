@@ -1,13 +1,22 @@
 __version__ = "0.0.0"
+
+import jax
+
+jax.config.update("jax_enable_x64", True)
+import caskade as ck
+
+ck.backend.backend = "jax"
+
+
 from . import (
-    sn,
+    # sn,
     detect,
-    rates,
     survey,
-    likelihood,
+    # likelihood,
     sims,
     utils,
 )
+from .rates import Rate, RateConst, RateInterp, CombinedRate
 from .source import (
     Source,
     TransientSource,
@@ -23,17 +32,14 @@ from .throughput import Throughput, RubinThroughput
 from .magsystem import MagSystem, MagAB
 from .cosmology import Cosmology
 
-import jax
-
-jax.config.update("jax_enable_x64", True)
-import caskade as ck
-
-ck.backend.backend = "jax"
-
 __all__ = (
     "sn",
     "detect",
     "rates",
+    "Rate",
+    "RateConst",
+    "RateInterp",
+    "CombinedRate",
     "Source",
     "TransientSource",
     "StaticSource",
