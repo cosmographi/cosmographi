@@ -70,49 +70,8 @@ class Instrument(Module):
         """
         f = self._observe_spectrum(band, source, *args, **kwargs)
         w = self.throughput.w[band]
-        F = flux.f_lambda_band(w, f, self.throughput.T(w, band))
+        F = flux.f_lambda_band(w, f, self.throughput.T(band, w))
         return F
-
-    @forward
-    def mflux(self, band, exp_time, source: Source, *args, **kwargs):
-        """Compute the magnitude system normalized flux and its variance.
-
-        Return the normalized flux in the magnitude system and its measurement
-        variance of a source observed through the instrument's throughput. The
-        normalized flux is the value: flux / flux_reference where the
-        flux_reference is defined in the magnitude system. The variance is the
-        variance on the normalized flux.
-
-        Normalized flux is unitless, the units of your flux (un-normalized)
-        values is determined by your magnitude system.
-
-        Parameters
-        ----------
-        band : int
-            Index of the filter band to use for the flux error calculation.
-        exp_time : float
-            Exposure time in seconds.
-        source : BaseSource
-            The source for which to calculate the flux error.
-        *args, **kwargs
-            Additional arguments to pass to the source's spectral_flux_density
-            method. Note that the wavelength argument (w) is provided by the
-            Throughput object and should not be passed in by the user.
-
-        Returns
-        -------
-        mflux : float
-            The observed flux of the source through the specified filter,
-            normalized by the magnitude system's reference flux.
-        var : float
-            The variance on the observed flux of the source through the
-            specified filter, normalized by the magnitude system's reference
-            flux.
-        """
-        F = self.flux(band, exp_time, source, *args, **kwargs)
-        E = self.effective_aperture * exp_time * F
-        norm = self.effective_aperture * exp_time * self.mag_system.reference_flux(band)
-        return E / norm, E / norm**2
 
     @forward
     def observation_var(self, band, exp_time, sky_brightness, PSF_Aeff) -> float:
@@ -199,15 +158,15 @@ class Instrument(Module):
 
         N = flux * norm  # Expected number of electrons
         Ve = jnp.abs(N)  # Flux error in electrons
-        Vbkg, Vread = self.observation_var(
-            band, exp_time, sky_brightness, PSF_Aeff
-        )  # Total noise variance in electrons
+        # Non-source contributions to noise variance in electrons
+        Vbkg, Vread = self.observation_var(band, exp_time, sky_brightness, PSF_Aeff)
 
+        # Observed number of electrons with noise
         noise = jax.random.normal(key, shape=flux.shape)
-        Nobs = N + noise * jnp.sqrt(Ve + Vbkg + Vread)  # Observed number of electrons with noise
+        Nobs = N + noise * jnp.sqrt(Ve + Vbkg + Vread)
 
         flux_obs = Nobs / norm  # Convert back to flux units
         # Measured flux uncertainty, set floor at Vread since typical variance plane
         # values are: Nelectrons + Vread, plus further calibration not modelled here
-        flux_err_obs = jnp.sqrt(jnp.clip(Nobs + Vbkg + Vread, a_min=Vread)) / norm
+        flux_err_obs = jnp.sqrt(jnp.clip(Nobs + Vbkg + Vread, min=Vread)) / norm
         return flux_obs, flux_err_obs, flux, jnp.sqrt(Ve + Vbkg + Vread) / norm

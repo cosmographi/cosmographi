@@ -12,7 +12,7 @@ class MagSystem(Module):
             Ze,
             shape=(None,),
             description="Electron zero point, conversion factor to take magnitudes into fluxes of electrons/s. Sometimes called instrumental zeropoint or instrumental magnitude.",
-            units="emags",
+            units="mag",
         )
 
     @abstractmethod
