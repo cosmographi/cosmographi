@@ -94,9 +94,11 @@ class SALT2_2021(TransientSource):
             Time (phase) of observation (days) rest frame
         """
         p0 = flux.observer_to_rest_time(t0, z)
-        M0, M1 = self.get_model_basis(p - p0)
+        p = p - p0
+        M0, M1 = self.get_model_basis(p)
         f_l = M0 + x1 * M1
-        return jnp.interp(w, self.wavelength_nodes, f_l) * jnp.exp(c * self.colour_law(w))
+        F = jnp.interp(w, self.wavelength_nodes, f_l) * jnp.exp(c * self.colour_law(w))
+        return jnp.where(p < self.min_phase(), 0.0, jnp.where(p > self.max_phase(), 0.0, F))
 
     def load_salt2_model(self, directory=None):
         if directory is None:

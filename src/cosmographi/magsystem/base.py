@@ -31,6 +31,7 @@ class MagSystem(Module):
         """
         raise NotImplementedError("Subclasses must implement this method.")
 
+    @forward
     def flux_to_mag(self, band, flux: jnp.ndarray):
         """
         Convert fluxes to magnitudes using the typical magnitude formula:
@@ -62,6 +63,7 @@ class MagSystem(Module):
         flux_ref = self.reference_flux(band)
         return -2.5 * jnp.log10(flux / flux_ref)
 
+    @forward
     def mag_to_flux(self, band, mags: jnp.ndarray):
         """
         Convert magnitudes to fluxes using the reference flux for the magnitude system.
@@ -101,6 +103,7 @@ class MagSystem(Module):
         """
         return 10 ** (-0.4 * (mag - Ze[band]))
 
+    @forward
     def err(self, flux: jnp.ndarray, flux_err: jnp.ndarray):
         """
         Convert flux errors to magnitude errors using error propagation for the typical magnitude formula.

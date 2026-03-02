@@ -106,6 +106,14 @@ class TransientSource(Source):
         raise NotImplementedError("Subclasses must implement the max_phase method.")
 
     @forward
+    def min_time(self, z, t0):
+        return t0 + flux.rest_to_observer_time(self.min_phase(), z)
+
+    @forward
+    def max_time(self, z, t0):
+        return t0 + flux.rest_to_observer_time(self.max_phase(), z)
+
+    @forward
     def visible(self, t, t0, z):
         t_range = (
             flux.rest_to_observer_time(self.min_phase(), z),

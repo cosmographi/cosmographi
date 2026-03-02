@@ -1,7 +1,6 @@
 from typing import Optional
 
-from caskade import Param, forward, active_cache
-import jax
+from caskade import Param, forward
 import jax.numpy as jnp
 
 from .base import MagSystem
@@ -13,19 +12,6 @@ class MagAB(MagSystem):
     def __init__(self, throughput: Optional[Throughput] = None, name=None, **kwargs):
         super().__init__(name=name, **kwargs)
         self.throughput = throughput
-
-    @active_cache
-    @forward
-    def _get_flux_refs(self):
-        bands = jnp.arange(len(self.throughput.bands))
-        # AB magnitude system reference flux in erg/s/cm^2/Hz
-        f_nu = 3631 * 1e-23  # Convert Jy to erg/s/cm^2/Hz
-        nu = flux.nu(self.throughput.w)
-        return jax.vmap(flux.f_lambda_band)(
-            self.throughput.w,
-            flux.f_l(nu, f_nu),
-            jax.vmap(self.throughput.T)(self.throughput.w, bands),
-        )
 
     @forward
     def reference_flux(self, band: int):
@@ -45,8 +31,13 @@ class MagAB(MagSystem):
         flux_ref : jnp.ndarray
             Reference flux for the filter in the AB magnitude system in (electrons/s/cm^2).
         """
-        flux_refs = self._get_flux_refs()
-        return flux_refs[band]
+        f_nu = 3631 * 1e-23  # Convert Jy to erg/s/cm^2/Hz
+        nu = flux.nu(self.throughput.w[band])
+        return flux.f_lambda_band(
+            self.throughput.w[band],
+            flux.f_l(nu, f_nu),
+            self.throughput.T(band, self.throughput.w[band]),
+        )
 
 
 class MagZP(MagSystem):

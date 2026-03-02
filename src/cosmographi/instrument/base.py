@@ -134,9 +134,9 @@ class Instrument(Module):
         dark_Ne = self.dark_current * exp_time * PSF_pixel_Aeff
 
         # Read noise in electrons
-        read_Ne = self.read_noise**2 * PSF_pixel_Aeff
+        read_noise = self.read_noise**2 * PSF_pixel_Aeff
 
-        return sky_Ne + dark_Ne + read_Ne
+        return sky_Ne + dark_Ne, read_noise
 
     @forward
     def observe(
@@ -199,13 +199,15 @@ class Instrument(Module):
 
         N = flux * norm  # Expected number of electrons
         Ve = jnp.abs(N)  # Flux error in electrons
-        Vnoise = self.observation_var(
+        Vbkg, Vread = self.observation_var(
             band, exp_time, sky_brightness, PSF_Aeff
         )  # Total noise variance in electrons
 
         noise = jax.random.normal(key, shape=flux.shape)
-        Nobs = N + noise * jnp.sqrt(Ve + Vnoise)  # Observed number of electrons with noise
+        Nobs = N + noise * jnp.sqrt(Ve + Vbkg + Vread)  # Observed number of electrons with noise
 
         flux_obs = Nobs / norm  # Convert back to flux units
-        flux_err_obs = jnp.sqrt(jnp.abs(Nobs + Vnoise)) / norm  # Measured flux uncertainty
-        return flux_obs, flux_err_obs, flux, (Ve + Vnoise) / norm
+        # Measured flux uncertainty, set floor at Vread since typical variance plane
+        # values are: Nelectrons + Vread, plus further calibration not modelled here
+        flux_err_obs = jnp.sqrt(jnp.clip(Nobs + Vbkg + Vread, a_min=Vread)) / norm
+        return flux_obs, flux_err_obs, flux, jnp.sqrt(Ve + Vbkg + Vread) / norm
