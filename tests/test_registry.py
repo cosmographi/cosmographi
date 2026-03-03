@@ -2,8 +2,8 @@ import os
 
 import pytest
 
-from cosmographi.utils.registry import _registry, load_data, download_data, register_loader
 from cosmographi.throughput.base import Throughput_wAtmos
+from cosmographi.utils.registry import _registry, Loadable, download_data, register_loader
 
 
 def test_registry_startup():
@@ -58,15 +58,9 @@ def test_can_local_override(tmp_path):
         with open(f"{fp}/test_file.txt", "r") as f:
             return {"foo": f.read()}
 
-    class Dummy:
+    class Dummy(Loadable):
         def __init__(self, foo):
             self.foo = foo
-
-        @classmethod
-        def load(cls, key: str, *args, **kwargs):
-            data = load_data(key)
-            _kwargs = data | kwargs
-            return cls(*args, **_kwargs)
 
     test_dir = tmp_path / "override"
     test_dir.mkdir()
@@ -83,7 +77,7 @@ def test_can_local_override(tmp_path):
 
 
 def test_load_rubin_throughput(tmp_path, monkeypatch):
-    """Test that we can load remote data into a RubinThroughput instance"""
+    """Test that we can load remote data and pass into a Throughput_wAtmos constructor"""
     tmp_path = tmp_path / "data"
     tmp_path.mkdir()
     monkeypatch.setattr("cosmographi.utils.registry.LOCAL_ROOT", tmp_path)

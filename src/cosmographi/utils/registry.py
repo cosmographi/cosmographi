@@ -150,7 +150,6 @@ for loader in [rubin_throughput_loader, some_other_loader]:
     register_loader(key, relpath, fn)
 
 
-# Other option is to use this as a factory and pass in the class, avoiding the classmethod on every class
 def load_data(
     key: str | None = None,
     relpath: str | None = None,
@@ -184,3 +183,11 @@ def load_data(
     args = fn(os.path.join(LOCAL_ROOT, _relpath))
 
     return args
+
+
+class Loadable:
+    @classmethod
+    def load(cls, key: str, *args, **kwargs):
+        data = load_data(key)
+        _kwargs = data | kwargs
+        return cls(*args, **_kwargs)
