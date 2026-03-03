@@ -3,7 +3,7 @@ from caskade import Module, Param, forward
 
 from ..utils.helpers import trim_and_pad_batch
 from ..utils import flux
-from ..utils.registry import RegistryLoader
+from ..utils.registry import load_data
 
 
 class Throughput(Module):
@@ -31,26 +31,22 @@ class Throughput(Module):
 
     def __init__(
         self,
-        bands: list[str] | None = None,
-        w: jnp.ndarray | None = None,
-        T: jnp.ndarray | None = None,
+        bands: list[str],
+        w: jnp.ndarray,
+        T: jnp.ndarray,
         name=None,
     ):
         super().__init__(name=name)
         self.bands = bands
-        if T and T.ndim == 1:
+        if T.ndim == 1:
             T = T[None]
-            if w and w.ndim == 1:
-                w = w.reshape(1, -1).repeat(T.shape[0], axis=0)
+        if w.ndim == 1:
+            w = w.reshape(1, -1).repeat(T.shape[0], axis=0)
         self._w = w
         self._T = T
 
     def T(self, w, b):
         """Total transmission including hardware and atmosphere."""
-        if not self._w:
-            raise ValueError("_w is not defined!")
-        if not self._T:
-            raise ValueError("_T is not defined!")
         return jnp.interp(w, self._w[b], self._T[b])
 
     def T_nu(self, nu, b):
@@ -64,8 +60,6 @@ class Throughput(Module):
     @property
     def nu(self):
         """Frequency array corresponding to the wavelength array."""
-        if not self.w:
-            raise ValueError("w is not defined!")
         return flux.nu(self.w[:, ::-1])
 
     def trim(self, threshold: float = 1e-4):
@@ -74,16 +68,9 @@ class Throughput(Module):
         self._w, self._T = trim_and_pad_batch(self._w, self._T, threshold)
 
 
-class Throughput_wAtmos(Throughput, metaclass=RegistryLoader):
+class Throughput_wAtmos(Throughput):
     def __init__(
-        self,
-        bands: list[str] | None = None,
-        w_hardware: jnp.ndarray | None = None,
-        T_hardware: jnp.ndarray | None = None,
-        w_atmosphere: jnp.ndarray | None = None,
-        T_atmosphere: jnp.ndarray | None = None,
-        air_mass=1.0,
-        name=None,
+        self, bands, w_hardware, T_hardware, w_atmosphere, T_atmosphere, air_mass=1.0, name=None
     ):
         super().__init__(bands=bands, w=w_hardware, T=T_hardware, name=name)
         self.w_atmosphere = w_atmosphere
@@ -96,8 +83,12 @@ class Throughput_wAtmos(Throughput, metaclass=RegistryLoader):
             units="unitless",
         )
 
+    @classmethod
+    def load(cls, key: str, *args, **kwargs):
+        data = load_data(key)
+        _kwargs = data | kwargs
+        return cls(*args, **_kwargs)
+
     @forward
     def T(self, w, b, air_mass):
-        if not self.w_atmosphere:
-            raise ValueError("w_atmosphere is not defined!")
         return super().T(w, b) * jnp.interp(w, self.w_atmosphere, self.T_atmosphere**air_mass)

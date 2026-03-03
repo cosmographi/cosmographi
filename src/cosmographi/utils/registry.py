@@ -1,8 +1,9 @@
 import os
 import tarfile
 from tempfile import NamedTemporaryFile
-from typing import Callable, IO
+from typing import Any, Callable, Dict, IO, List, TypedDict, Tuple
 
+import jax.numpy as jnp
 import numpy as np
 import pandas as pd
 import requests
@@ -47,7 +48,16 @@ def download_data(relpath: str):
             t.extractall(path=LOCAL_ROOT)
 
 
-def load_rubin_throughput(self, abspath: str):
+class RubinThroughput(TypedDict):
+    bands: List[str]
+    w_hardware: jnp.ndarray
+    T_hardware: jnp.ndarray
+    w_atmosphere: jnp.ndarray
+    T_atmosphere: jnp.ndarray
+    air_mass: float
+
+
+def load_rubin_throughput(abspath: str) -> RubinThroughput:
     """Read in data from ```abspath``` and assign as needed to properties of ``self``.
     It's expected that ``self`` would be an instance of ``RubinThroughput``, but this is not required.
 
@@ -72,12 +82,14 @@ def load_rubin_throughput(self, abspath: str):
     w_atmosphere = df["w"].values
     T_atmosphere = df["T"].values
 
-    self._w = w_hardware
-    self._T = T_hardware
-
-    self.bands = bands
-    self.w_atmosphere = w_atmosphere
-    self.T_atmosphere = T_atmosphere
+    return {
+        "bands": bands,
+        "w_hardware": jnp.array(w_hardware),
+        "T_hardware": jnp.array(T_hardware),
+        "w_atmosphere": jnp.array(w_atmosphere),
+        "T_atmosphere": jnp.array(T_atmosphere),
+        "air_mass": 1.2,
+    }
 
 
 class _Registry:
@@ -87,9 +99,13 @@ class _Registry:
     """
 
     def __init__(self):
-        self._loaders = {}
+        pass
 
-    def get_loader(self, key: str | None = None, relpath: str | None = None):
+    _loaders = {}
+
+    def get_loader(
+        self, key: str | None = None, relpath: str | None = None
+    ) -> Tuple[str, Callable[[str], Dict[str, Any]]]:
         if key is None and relpath is None:
             raise ValueError("key and path cannot both be None!")
 
@@ -108,7 +124,7 @@ class _Registry:
 _registry = _Registry()
 
 
-def register_loader(key: str, relpath: str, fn: Callable[[object, str], None]):
+def register_loader(key: str, relpath: str, fn: Callable[[str], Dict[str, Any]]):
     if key in _registry._loaders:
         raise ValueError(f"{key} is already registered!")
     if relpath in _registry._loaders:
@@ -134,8 +150,8 @@ for loader in [rubin_throughput_loader, some_other_loader]:
     register_loader(key, relpath, fn)
 
 
+# Other option is to use this as a factory and pass in the class, avoiding the classmethod on every class
 def load_data(
-    self,
     key: str | None = None,
     relpath: str | None = None,
 ):
@@ -165,4 +181,6 @@ def load_data(
         download_data(_relpath)
 
     # call the loading function with the path to the local directory where the data is located
-    fn(self, os.path.join(LOCAL_ROOT, _relpath))
+    args = fn(os.path.join(LOCAL_ROOT, _relpath))
+
+    return args

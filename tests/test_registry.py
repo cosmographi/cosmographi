@@ -3,7 +3,7 @@ import os
 import pytest
 
 from cosmographi.utils.registry import _registry, load_data, download_data, register_loader
-from cosmographi.throughput.rubin import RubinThroughput
+from cosmographi.throughput.base import Throughput_wAtmos
 
 
 def test_registry_startup():
@@ -40,8 +40,8 @@ def test_download_data(tmp_path, monkeypatch):
 def test_cannot_register_twice():
     """Test that trying to register the same path twice causes an error"""
 
-    def dummy(s: object, p: str):
-        pass
+    def dummy(p: str):
+        return {"foo": 1}
 
     register_loader("foo", "/tmp", dummy)
 
@@ -54,14 +54,19 @@ def test_can_local_override(tmp_path):
     This is useful in situation where the user wants to use a given loader function but on local data.
     """
 
-    def load_fn(self, fp: str):
+    def load_fn(fp: str):
         with open(f"{fp}/test_file.txt", "r") as f:
-            self.foo = f.read()
+            return {"foo": f.read()}
 
     class Dummy:
-        foo = None
+        def __init__(self, foo):
+            self.foo = foo
 
-    dummy = Dummy()
+        @classmethod
+        def load(cls, key: str, *args, **kwargs):
+            data = load_data(key)
+            _kwargs = data | kwargs
+            return cls(*args, **_kwargs)
 
     test_dir = tmp_path / "override"
     test_dir.mkdir()
@@ -72,7 +77,7 @@ def test_can_local_override(tmp_path):
 
     register_loader("test", str(test_dir), load_fn)
 
-    load_data(dummy, "test")
+    dummy = Dummy.load("test")
 
     assert dummy.foo == "bar"
 
@@ -83,8 +88,6 @@ def test_load_rubin_throughput(tmp_path, monkeypatch):
     tmp_path.mkdir()
     monkeypatch.setattr("cosmographi.utils.registry.LOCAL_ROOT", tmp_path)
 
-    rubin_throughput = RubinThroughput()
+    rubin_throughput = Throughput_wAtmos.load("rubin_throughput")
 
-    load_data(rubin_throughput, "rubin_throughput")
-
-    assert rubin_throughput.w is not None
+    assert rubin_throughput.air_mass.value == 1.2
