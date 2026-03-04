@@ -9,7 +9,21 @@ from cosmographi.utils.registry import (
     Loadable,
     download_data,
     register_loader,
+    _get_local_root,
 )
+
+
+def test_get_local_root(tmp_path, monkeypatch):
+    """Test that we the cache root will resolve correctly"""
+    os.environ["COSMOGRAPHI_CACHE_ROOT"] = str(tmp_path)
+
+    assert _get_local_root() == tmp_path
+
+    os.environ["COSMOGRAPHI_CACHE_ROOT"] = ""
+
+    monkeypatch.setattr("cosmographi.utils.registry.user_cache_dir", lambda x: "/foo/bar")
+
+    assert str(_get_local_root()) == "/foo/bar/data"
 
 
 def test_registry_startup():
@@ -32,7 +46,7 @@ def test_download_data(tmp_path, monkeypatch):
 
     tmp_path = tmp_path / "data"
     tmp_path.mkdir()
-    monkeypatch.setattr("cosmographi.utils.registry.LOCAL_ROOT", tmp_path)
+    monkeypatch.setattr("cosmographi.utils.registry.get_local_root", lambda: tmp_path)
 
     rubin_data_path, _ = _registry.get_loader("rubin_throughput")
 
@@ -86,7 +100,7 @@ def test_load_rubin_throughput(tmp_path, monkeypatch):
     """Test that we can load remote data and pass into a Throughput_wAtmos constructor"""
     tmp_path = tmp_path / "data"
     tmp_path.mkdir()
-    monkeypatch.setattr("cosmographi.utils.registry.LOCAL_ROOT", tmp_path)
+    monkeypatch.setattr("cosmographi.utils.registry.get_local_root", lambda: tmp_path)
 
     rubin_throughput = Throughput_wAtmos.load(key="rubin_throughput")
 

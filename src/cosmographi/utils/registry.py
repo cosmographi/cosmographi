@@ -1,13 +1,51 @@
+from logging import getLogger
 import os
+from pathlib import Path
 import tarfile
 from tempfile import NamedTemporaryFile
 from typing import Any, Callable, Dict, IO, Tuple, Mapping
 
+from platformdirs import user_cache_dir
 from cosmographi_datasets.loaders import load_rubin_throughput
 import requests
 import tqdm
 
-LOCAL_ROOT = "/tmp/cg_data/data"
+logger = getLogger(__name__)
+
+
+def _get_local_root() -> Path:
+    """Get the local cache path, first checking for the env var ``COSMOGRAPHI_CACHE_ROOT``,
+    then the user cache, then the install directory.
+
+    Returns
+    -------
+    Path
+        The absolute path to the user cache directory as a Path object.
+    """
+
+    if cache_root := os.getenv("COSMOGRAPHI_CACHE_ROOT"):
+        cache_root = Path(cache_root)
+    else:
+        cache_root = Path(user_cache_dir("cosmographi")) / "data"
+
+    return cache_root.resolve()
+
+
+def get_local_root() -> str:  # pragma: no cover
+    """Get the local cache path from :func:`_get_local_root` and create it
+    if it doesn't exist.
+
+    Returns
+    -------
+    str
+        The absolute path to the user cache directory.
+    """
+
+    local_root = _get_local_root()
+    local_root.mkdir(exist_ok=True, parents=True)
+    return str(local_root)
+
+
 REMOTE_ROOT = "https://raw.githubusercontent.com/cosmographi/datasets/loader-test/data"
 
 
@@ -47,9 +85,6 @@ def download_data(relpath: str) -> None:
     relpath : str
         The relative path to the directory containing the data
 
-    Returns
-    -------
-    None
     """
 
     with NamedTemporaryFile(suffix=".tar.gz", delete_on_close=True) as f:
@@ -64,7 +99,7 @@ def download_data(relpath: str) -> None:
 
         with tarfile.open(fileobj=f, mode="r") as t:
             # We extract straight to local root as the file should be relative to the remote root, which has the same structure
-            t.extractall(path=LOCAL_ROOT)
+            t.extractall(path=get_local_root())
 
 
 """Internal class for holding data loaders for given keys/paths
@@ -182,7 +217,7 @@ def load_data(
         download_data(_relpath)
 
     # call the loading function with the path to the local directory where the data is located
-    args = fn(os.path.join(LOCAL_ROOT, _relpath))
+    args = fn(os.path.join(get_local_root(), _relpath))
 
     return args
 
