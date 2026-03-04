@@ -1,7 +1,7 @@
 import os
 import tarfile
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, IO, Tuple
+from typing import Any, Callable, Dict, IO, Tuple, Mapping
 
 from cosmographi_datasets.loaders import load_rubin_throughput
 import requests
@@ -11,49 +11,72 @@ LOCAL_ROOT = "/tmp/cg_data/data"
 REMOTE_ROOT = "https://raw.githubusercontent.com/cosmographi/datasets/loader-test/data"
 
 
-def download_file(url, file: IO[bytes]):
-    """Downloads a file with a tqdm progress bar to file object."""
+def download_file(url: str, file_wrapper: IO[bytes]) -> IO[bytes]:
+    """Download the file from ``url`` and write to ``file_wrapper``.
+
+    Parameters
+    ----------
+    url : str
+        The url of the targe file.
+    file : IO[bytes]
+        The open file wrapper to write to.
+
+    Returns
+    -------
+    IO[bytes]
+        The file wrapper ``seek``ed back to 0
+    """
     response = requests.get(url, stream=True)
     total_size = int(response.headers.get("content-length", 0))
     block_size = 8192  # 8KB
 
     with tqdm.tqdm(total=total_size, unit="B", unit_scale=True, desc=url) as pbar:
         for data in response.iter_content(block_size):
-            file.write(data)
+            file_wrapper.write(data)
             pbar.update(len(data))
-    file.seek(0)
+    file_wrapper.seek(0)
+    return file_wrapper
 
 
-def download_data(relpath: str):
+def download_data(relpath: str) -> None:
     """Download a tarred directory of data from REMOTE_ROOT and extract to ``relpath``
     relative to ``LOCAL_ROOT``.
 
-    :param relpath: The relative path to the directory containing the data
-    :type relpath: Path
+    Parameters
+    ----------
+    relpath : str
+        The relative path to the directory containing the data
+
+    Returns
+    -------
+    None
     """
+
     with NamedTemporaryFile(suffix=".tar.gz", delete_on_close=True) as f:
         # we save it to a temp directory and extract to local root, as we expect all extracted paths to be relative to that one
 
         remote_path = os.path.join(REMOTE_ROOT, relpath) + ".tar.gz"
 
-        download_file(
+        f = download_file(
             remote_path,
             f.file,
         )
 
-        with tarfile.open(f.name, "r") as t:
+        with tarfile.open(fileobj=f, mode="r") as t:
             # We extract straight to local root as the file should be relative to the remote root, which has the same structure
             t.extractall(path=LOCAL_ROOT)
 
 
+"""Internal class for holding data loaders for given keys/paths
+
+Note that each loader can be retrieved by its key or its path.
+"""
+
+
 class _Registry:
     """Internal class for holding data loaders for given keys/paths
-
     Note that each loader can be retrieved by its key or its path.
     """
-
-    def __init__(self):
-        pass
 
     _loaders = {}
 
@@ -73,12 +96,32 @@ class _Registry:
         return loader
 
 
-# Instantiate the singleton registry on first import
-
+# Instantiate our (by convention) singleton registry on first import
 _registry = _Registry()
 
 
-def register_loader(key: str, relpath: str, fn: Callable[[str], Dict[str, Any]]):
+def register_loader(key: str, relpath: str, fn: Callable[[str], Mapping[str, Any]]) -> None:
+    """Register a loader with the registry.
+
+    Parameters
+    ----------
+    key : str
+        The unique key for the loader.
+    relpath : str
+        The unique relative path to the data. This is the path to the directory on the local
+        or remote filesystem where the data is located, relative to ``LOCAL_ROOT`` or ``REMOTE_ROOT``.
+    fn : Callable[[str], Mapping[str, Any]]
+        A function that takes the path to the data directory and returns a dictionary (or TypedDict) of data
+        to be passed as kwargs to a class's constructor.
+
+    Raises
+    ------
+    ValueError
+        If ``key`` is already assigned.
+    ValueError
+        If ``path`` is already assigned.
+    """
+
     if key in _registry._loaders:
         raise ValueError(f"{key} is already registered!")
     if relpath in _registry._loaders:
@@ -97,9 +140,7 @@ rubin_throughput_loader = (
     load_rubin_throughput,
 )
 
-some_other_loader = ("some_other_loader_name", "path/to/other/data", lambda x: open(x))
-
-for loader in [rubin_throughput_loader, some_other_loader]:
+for loader in [rubin_throughput_loader]:
     key, relpath, fn = loader
     register_loader(key, relpath, fn)
 
@@ -107,17 +148,24 @@ for loader in [rubin_throughput_loader, some_other_loader]:
 def load_data(
     key: str | None = None,
     relpath: str | None = None,
-):
+) -> Dict[str, Any]:
     """Load data from the registry by key or path or both (in which case path is a local override).
     The function will first look for the data locally. If both ``key`` and ``relpath`` are passed in,
     the function will raise an exception if the data cannot be found at ``path``.
     Otherwise, if the data can't be found locally, the function will attempt to download it from the remote
     directory and save it to LOCAL_PATH + relpath
 
-    :param key: The key of the data, defaults to None
-    :type key: str | None, optional
-    :param relpath: The relative path to the dataset, defaults to None
-    :type relpath: str | None, optional
+    Parameters
+    ----------
+    key : str | None, optional
+        The key of the data, by default None
+    relpath : str | None, optional
+        The relative path to the dataset, by default None
+
+    Returns
+    -------
+    Dict[str, Any]
+        The data as a dictionary of key-value pairs
     """
 
     _relpath, fn = _registry.get_loader(key, relpath)
@@ -140,8 +188,19 @@ def load_data(
 
 
 class Loadable:
+    """Mixin for classes that can be auto-loaded via the registry."""
+
+    """Load data from ``key`` and/or ``path`` from the registry and use to
+    instantiate ``cls`` and return.
+
+    Returns
+    -------
+    cls
+        An instance of ``cls``
+    """
+
     @classmethod
-    def load(cls, key: str, *args, **kwargs):
-        data = load_data(key)
+    def load(cls, key: str | None = None, path: str | None = None, *args, **kwargs):
+        data = load_data(key, path)
         _kwargs = data | kwargs
         return cls(*args, **_kwargs)

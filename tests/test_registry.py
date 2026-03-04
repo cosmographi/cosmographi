@@ -4,14 +4,19 @@ import pytest
 
 from cosmographi.throughput.base import Throughput_wAtmos
 from cosmographi.throughput.rubin import RubinThroughput
-from cosmographi.utils.registry import _registry, Loadable, download_data, register_loader
+from cosmographi.utils.registry import (
+    _registry,
+    Loadable,
+    download_data,
+    register_loader,
+)
 
 
 def test_registry_startup():
-    """Test that the bootstrapped (singleton) registry has the 2 loaders we assigned."""
+    """Test that the bootstrapped (singleton) registry has the loader we have assigned so far."""
 
-    # 2 items, 4 keys, since path and key are keys to the dict
-    assert len(_registry._loaders) == 4
+    # 1 item, 2 keys, since path and key are keys to the dict
+    assert len(_registry._loaders) == 2
 
 
 def test_get_loader():
@@ -50,7 +55,7 @@ def test_cannot_register_twice():
         register_loader("foo", "/tmp", dummy)
 
 
-def test_can_local_override(tmp_path):
+def test_loadable_and_local_override(tmp_path):
     """Test that passing a key and a path to the register function results in a local path override.
     This is useful in situation where the user wants to use a given loader function but on local data.
     """
@@ -83,7 +88,7 @@ def test_load_rubin_throughput(tmp_path, monkeypatch):
     tmp_path.mkdir()
     monkeypatch.setattr("cosmographi.utils.registry.LOCAL_ROOT", tmp_path)
 
-    rubin_throughput = Throughput_wAtmos.load("rubin_throughput")
+    rubin_throughput = Throughput_wAtmos.load(key="rubin_throughput")
 
     rubin_default = RubinThroughput()
 
