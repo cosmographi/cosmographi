@@ -1,11 +1,9 @@
 import os
 import tarfile
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, IO, List, TypedDict, Tuple
+from typing import Any, Callable, Dict, IO, Tuple
 
-import jax.numpy as jnp
-import numpy as np
-import pandas as pd
+from cosmographi_datasets.loaders import load_rubin_throughput
 import requests
 import tqdm
 
@@ -46,50 +44,6 @@ def download_data(relpath: str):
         with tarfile.open(f.name, "r") as t:
             # We extract straight to local root as the file should be relative to the remote root, which has the same structure
             t.extractall(path=LOCAL_ROOT)
-
-
-class RubinThroughput(TypedDict):
-    bands: List[str]
-    w_hardware: jnp.ndarray
-    T_hardware: jnp.ndarray
-    w_atmosphere: jnp.ndarray
-    T_atmosphere: jnp.ndarray
-    air_mass: float
-
-
-def load_rubin_throughput(abspath: str) -> RubinThroughput:
-    """Read in data from ```abspath``` and assign as needed to properties of ``self``.
-    It's expected that ``self`` would be an instance of ``RubinThroughput``, but this is not required.
-
-    :param abspath: The absolute path to the data on the local filesystem.
-    :type abspath: str
-    """
-
-    bands = ["u", "g", "r", "i", "z", "y"]
-    w_hardware = []
-    T_hardware = []
-    for b in bands:
-        df = pd.read_csv(
-            os.path.join(abspath, f"lsst_hardware_{b}.csv"),
-            names=["w", "T"],
-            comment="#",
-        )
-        w_hardware.append(df["w"].values)
-        T_hardware.append(df["T"].values)
-    w_hardware = np.stack(w_hardware)
-    T_hardware = np.stack(T_hardware)
-    df = pd.read_csv(os.path.join(abspath, "lsst_atmos_10.csv"), names=["w", "T"], comment="#")
-    w_atmosphere = df["w"].values
-    T_atmosphere = df["T"].values
-
-    return {
-        "bands": bands,
-        "w_hardware": jnp.array(w_hardware),
-        "T_hardware": jnp.array(T_hardware),
-        "w_atmosphere": jnp.array(w_atmosphere),
-        "T_atmosphere": jnp.array(T_atmosphere),
-        "air_mass": 1.2,
-    }
 
 
 class _Registry:
