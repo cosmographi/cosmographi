@@ -4,11 +4,12 @@ import pytest
 
 from cosmographi.throughput.base import Throughput_wAtmos
 from cosmographi.utils.registry import (
-    _registry,
     Loadable,
     download_data,
+    load_data,
     register_loader,
     _get_local_root,
+    _registry,
 )
 
 
@@ -56,16 +57,29 @@ def test_download_data(tmp_path, monkeypatch):
     assert os.path.exists(os.path.join(tmp_path, rubin_data_path))
 
 
-def test_cannot_register_twice():
-    """Test that trying to register the same path twice causes an error"""
+def test_registration_errors():
+    """Test that trying to register the same path/key twice, not passing a key or path, and
+    passing a nonexistent key raise errors"""
 
     def dummy(p: str):
         return {"foo": 1}
 
     register_loader("foo", "/tmp", dummy)
 
+    # same key
     with pytest.raises(ValueError):
-        register_loader("foo", "/tmp", dummy)
+        register_loader("foo", "/abc", dummy)
+
+    # same path
+    with pytest.raises(ValueError):
+        register_loader("bar", "/tmp", dummy)
+
+    # no key
+    with pytest.raises(ValueError):
+        load_data()
+
+    with pytest.raises(KeyError):
+        load_data("non-existent")
 
 
 def test_loadable_and_local_override(tmp_path):
@@ -88,9 +102,9 @@ def test_loadable_and_local_override(tmp_path):
     with open(test_file, "w") as f:
         f.write("bar")
 
-    register_loader("test", str(test_dir), load_fn)
+    register_loader("test", str(test_dir / "nonexistent"), load_fn)
 
-    dummy = Dummy.load("test")
+    dummy = Dummy.load(key="test", path=str(test_dir) + "/")
 
     assert dummy.foo == "bar"
 

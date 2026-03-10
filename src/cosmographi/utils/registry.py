@@ -125,6 +125,7 @@ class _Registry:
             if k is not None:
                 try:
                     loader = self._loaders[k]
+                    break
                 except KeyError:
                     raise KeyError(f"{k} is not in the registry!")
 
