@@ -3,7 +3,6 @@ import os
 import pytest
 
 from cosmographi.throughput.base import Throughput_wAtmos
-from cosmographi.throughput.rubin import RubinThroughput
 from cosmographi.utils.registry import (
     _registry,
     Loadable,
@@ -104,9 +103,5 @@ def test_load_rubin_throughput(tmp_path, monkeypatch):
 
     rubin_throughput = Throughput_wAtmos.load(key="rubin_throughput")
 
-    rubin_default = RubinThroughput()
-
     # the values were assigned
     assert rubin_throughput.air_mass.value == 1.2
-    # the properties are the same in loaded and explicit instances
-    assert rubin_default.T_nu(1, 2) == rubin_throughput.T_nu(1, 2)

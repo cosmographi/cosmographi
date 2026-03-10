@@ -19,7 +19,7 @@ from .source import (
     TransientBlackbody,
 )
 from .instrument import Instrument, RubinObservatory
-from .throughput import Throughput, RubinThroughput
+from .throughput import Throughput
 from .magsystem import MagSystem, MagAB
 from .cosmology import Cosmology
 
@@ -49,7 +49,6 @@ __all__ = (
     "Instrument",
     "RubinObservatory",
     "Throughput",
-    "RubinThroughput",
     "MagSystem",
     "MagAB",
     "Cosmology",
