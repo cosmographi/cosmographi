@@ -12,9 +12,9 @@ def test_ABMag_consistency():
 
     # photons/s/cm^2 in each band computed using f_nu and f_lambda should be consistent
     for i in range(len(throughput.bands)):
-        bandflux_nu = flux.f_nu_band(throughput.nu[i], f, throughput.T_nu(throughput.nu[i], i))
+        bandflux_nu = flux.f_nu_band(throughput.nu[i], f, throughput.T_nu(i, throughput.nu[i]))
         bandflux_w = flux.f_lambda_band(
-            throughput.w[i], flux.f_l(throughput.nu[i], f)[::-1], throughput.T(throughput.w[i], i)
+            throughput.w[i], flux.f_l(throughput.nu[i], f)[::-1], throughput.T(i, throughput.w[i])
         )
 
         assert jnp.allclose(bandflux_nu, bandflux_w), (

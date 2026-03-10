@@ -7,13 +7,23 @@ from .helpers import (
     tdp_regression,
     tdp_evaluate,
     cdist,
+    sample_near,
+    bandstr_to_bandidx,
 )
-from .sampling import mala, latin_hypercube
-from .integration import mid, quad, log_quad, gauss_rescale_integrate, log_gauss_rescale_integrate
+from .sampling import mala, latin_hypercube, asym_gauss, sample_asym_gauss
+from .integration import (
+    mid,
+    quad,
+    log_quad,
+    gauss_rescale_integrate,
+    log_gauss_rescale_integrate,
+    simps,
+)
 from .interpolation import WLS, gaussian_kernel, RBF_weights, RBF_init, RBF
 from .plots import corner_plot
 from .loading import load_salt2_surface, load_salt2_colour_law
 from .extinction import fp99_extinction_law, fp99_extinction_law_knots, calzetti00_extinction_law
+from .survey import cross_match_survey_circle
 
 __all__ = (
     "constants",
@@ -25,6 +35,10 @@ __all__ = (
     "tdp_regression",
     "tdp_evaluate",
     "cdist",
+    "asym_gauss",
+    "sample_asym_gauss",
+    "sample_near",
+    "bandstr_to_bandidx",
     "mala",
     "latin_hypercube",
     "mid",
@@ -32,6 +46,7 @@ __all__ = (
     "log_quad",
     "gauss_rescale_integrate",
     "log_gauss_rescale_integrate",
+    "simps",
     "WLS",
     "gaussian_kernel",
     "RBF_weights",
@@ -43,4 +58,5 @@ __all__ = (
     "fp99_extinction_law",
     "fp99_extinction_law_knots",
     "calzetti00_extinction_law",
+    "cross_match_survey_circle",
 )

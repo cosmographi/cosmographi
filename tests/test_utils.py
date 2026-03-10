@@ -1,6 +1,10 @@
 import jax.numpy as jnp
 import jax
 import pytest
+import numpy as np
+from astropy.coordinates import angular_separation
+from astropy import units as u
+from scipy.integrate import quad as scipy_quad
 
 import cosmographi as cg
 
@@ -21,6 +25,39 @@ def test_quad_integrate(benchmark_jax):
     log_result = cg.utils.log_quad(log_f, a, b, n=50)
     log_expected = jnp.log(1.0 / 3.0)
     assert jnp.isclose(log_result, log_expected, rtol=1e-8)
+
+
+def test_simps_integrate():
+
+    f = lambda x: x**2
+    a = 0.0
+    b = 1.0
+    n = 51  # Must be odd for Simpson's rule
+    x = jnp.linspace(a, b, n)
+    y = f(x)
+    result = cg.utils.simps(y, dx=(b - a) / (n - 1))
+    expected = 1.0 / 3.0
+    assert jnp.isclose(result, expected, rtol=1e-8)
+
+
+def test_relative_accuracy():
+    f = lambda x: jnp.exp(x)
+    a = 0
+    b = 1
+    n = 31
+    res_trapz = jnp.trapezoid(f(jnp.linspace(a, b, n)), dx=(b - a) / (n - 1))
+    res_mid = cg.utils.mid(f, a, b, n=n)
+    res_simps = cg.utils.simps(f(jnp.linspace(a, b, n)), dx=(b - a) / (n - 1))
+    res_quad = cg.utils.quad(f, a, b, n=n)
+
+    expected = jnp.exp(1) - 1.0
+    assert jnp.isclose(res_trapz, expected, rtol=1e-4)
+    assert jnp.isclose(res_mid, expected, rtol=1e-4)
+    assert jnp.isclose(res_simps, expected, rtol=1e-4)
+    assert jnp.isclose(res_quad, expected, rtol=1e-4)
+    assert jnp.abs(res_trapz - expected) > jnp.abs(res_mid - expected)
+    assert jnp.abs(res_mid - expected) > jnp.abs(res_simps - expected)
+    assert jnp.abs(res_simps - expected) > jnp.abs(res_quad - expected)
 
 
 def test_gauss_rescale_integrate(benchmark_jax):
@@ -87,3 +124,63 @@ def test_int_Phi_N(mu1, mu2, benchmark_jax):
     res_quad = cg.utils.quad(lambda x: Phi(x) * N(x), -10, 10, 1000)
     res_int = cg.utils.int_Phi_N(mu1, sigma1, mu2, sigma2)
     assert jnp.isclose(res_quad, jnp.exp(res_int), rtol=1e-8)
+
+
+def test_survey_cross_match():
+    np.random.seed(42)
+    Nsrc = 1_000
+    Nsrv = 2_000
+    survey_ra = np.random.uniform(-180, 180, Nsrv)
+    survey_dec = np.rad2deg(np.arcsin(2 * np.random.uniform(size=Nsrv) - 1))
+
+    survey_t = np.linspace(0, 365 * 10, Nsrv)
+
+    sel = np.random.choice(len(survey_ra))
+    source_ra, source_dec = cg.utils.sample_near(
+        survey_ra[sel], survey_dec[sel], radius_deg=2, n=Nsrc
+    )
+    source_t = np.random.uniform(0, 365 * 10, Nsrc)
+    source_tmin = source_t - 20
+    source_tmax = source_t + 60
+
+    matches = cg.utils.cross_match_survey_circle(
+        source_tmin,
+        source_tmax,
+        source_ra,
+        source_dec,
+        survey_t,
+        survey_ra,
+        survey_dec,
+        survey_fov=2 * 1.75,
+    )
+    assert len(matches) > 5, "Some SN should match"
+    for key in list(matches.keys()):
+        assert source_tmin[key] < survey_t[matches[key][0]], (
+            "matched image should be in time window"
+        )
+        assert survey_t[matches[key][0]] < source_tmax[key], (
+            "matched image should be in time window"
+        )
+        assert (
+            angular_separation(
+                source_ra[key] * u.deg,
+                source_dec[key] * u.deg,
+                survey_ra[matches[key][0]] * u.deg,
+                survey_dec[matches[key][0]] * u.deg,
+            )
+            <= 1.75 * u.deg
+        ), "matched image should contain SN in fov"
+
+
+@pytest.mark.parametrize("mu, s1, s2", [(0.0, 1.0, 2.0), (1.0, 0.5, 0.5), (-1.0, 5.0, 1.0)])
+def test_asym_gauss(mu, s1, s2):
+
+    assert np.isclose(
+        scipy_quad(cg.utils.asym_gauss, -np.inf, np.inf, args=(mu, s1, s2))[0], 1.0, rtol=1e-8
+    )
+
+    np.random.seed(42)
+    samp = cg.utils.sample_asym_gauss(mu, s1, s2, n=10000)
+
+    assert np.isclose(np.sqrt(((samp[samp <= mu] - mu) ** 2).mean()), s1, rtol=0.1)
+    assert np.isclose(np.sqrt(((samp[samp > mu] - mu) ** 2).mean()), s2, rtol=0.1)

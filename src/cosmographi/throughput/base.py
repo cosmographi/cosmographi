@@ -45,13 +45,13 @@ class Throughput(Module):
         self._w = w
         self._T = T
 
-    def T(self, w, b):
+    def T(self, b, w):
         """Total transmission including hardware and atmosphere."""
         return jnp.interp(w, self._w[b], self._T[b])
 
-    def T_nu(self, nu, b):
+    def T_nu(self, b, nu):
         """Total transmission in frequency space."""
-        return self.T(flux.w(nu), b)
+        return self.T(b, flux.w(nu))
 
     @property
     def w(self):
@@ -84,5 +84,5 @@ class Throughput_wAtmos(Throughput, Loadable):
         )
 
     @forward
-    def T(self, w, b, air_mass):
-        return super().T(w, b) * jnp.interp(w, self.w_atmosphere, self.T_atmosphere**air_mass)
+    def T(self, b, w, air_mass):
+        return super().T(b, w) * jnp.interp(w, self.w_atmosphere, self.T_atmosphere**air_mass)

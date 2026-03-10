@@ -1,12 +1,12 @@
 from caskade import Param, forward
 import jax.numpy as jnp
 
-from .base import BaseSNRate
+from .base import Rate
 
 
-class SNRateConst(BaseSNRate):
+class RateConst(Rate):
     """
-    Constant supernova rate module.
+    Constant event rate module.
     """
 
     def __init__(self, cosmology, r, **kwargs):
@@ -14,21 +14,21 @@ class SNRateConst(BaseSNRate):
         self.r = Param(
             "r",
             r,
-            description="Supernova rate per unit volume",
+            description="event rate per unit volume",
             units="1/yr/Mpc^3",
         )
 
     @forward
     def rate_density(self, z, r=None):
         """
-        Calculate the supernova rate at redshift z.
+        Calculate the event rate at redshift z.
         """
         return r
 
 
-class SNRateInterp(BaseSNRate):
+class RateInterp(Rate):
     """
-    1D linear interpolating supernova rate module.
+    1D linear interpolating event rate module.
     """
 
     def __init__(self, cosmology, rate_z_nodes, r, **kwargs):
@@ -37,14 +37,14 @@ class SNRateInterp(BaseSNRate):
         self.r = Param(
             "r",
             r,
-            description="Supernova rate per unit volume at redshift z",
+            description="Event rate per unit volume at redshift z",
             units="1/yr/Mpc^3",
         )
 
     @forward
     def rate_density(self, z, r=None):
         """
-        Calculate the supernova rate at redshift z.
+        Calculate the event rate at redshift z.
         """
         # Placeholder for actual calculation
         return jnp.interp(z, self.rate_z_nodes, r)

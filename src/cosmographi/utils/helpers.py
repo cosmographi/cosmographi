@@ -3,6 +3,8 @@ import jax
 import numpy as np
 from tqdm import tqdm
 from itertools import combinations_with_replacement
+from astropy.coordinates import offset_by
+import astropy.units as u
 
 
 def midpoints(start, end, num):
@@ -176,3 +178,53 @@ def trim_and_pad_batch(wavelengths, transmissions, threshold=0.01):
             trimmed_wave[i, w:] = wavelengths[i, e] + dw[i] * np.arange(1, max_w - w + 1)
 
     return jnp.array(trimmed_wave), jnp.array(trimmed_trans)
+
+
+def sample_near(ra, dec, radius_deg, n=1):
+    # Angular separation (theta)
+    theta = np.random.randn(n) * radius_deg * u.deg
+
+    # Random position angle (0 to 360 degrees)
+    pa = np.random.rand(n) * 360 * u.deg
+
+    coords = offset_by(ra * u.deg, dec * u.deg, pa, theta)
+
+    return coords[0].deg, coords[1].deg
+
+
+def bandstr_to_bandidx(bands, bandstr):
+    """
+    Convert bands in a list as strings into indices corresponding to their
+    position in a given list of bands. For example, if bands = ["g", "r", "i",
+    "z"] and bandstr = ["r", "g"], this would return [1, 0] because "r" is at
+    index 1 in bands and "g" is at index 0. This is useful for converting from
+    survey data which often has bands as strings into indices that can be used
+    to index into arrays of throughput, zeropoints, etc. corresponding to each
+    band.
+
+    Parameters
+    ----------
+    bands : list of str
+        The list of bands corresponding to the order of arrays in the instrument
+    bandstr : list of str
+        The list of bands to convert into indices, typically from survey data
+
+    Returns
+    -------
+    indices : array of int
+        The indices corresponding to the positions of the bands in `bandstr` within `bands`.
+    """
+
+    bands = np.array(bands)
+    # Your original string array
+    target = np.array(bandstr)
+
+    # Use index view of what the sorted "bands" would look like (needed for searchsorted)
+    sort_idx = np.argsort(bands)
+    sorted_bands = bands[sort_idx]
+
+    # Find the positions in the sorted array. O(mlogn)
+    sorted_positions = np.searchsorted(sorted_bands, target)
+
+    # 4. Undo the sort
+    return sort_idx[sorted_positions]

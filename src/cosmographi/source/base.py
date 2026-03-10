@@ -37,11 +37,11 @@ class Source(Module):
 
     @abstractmethod
     def luminosity_density(self, w: jnp.ndarray, *args, **kwargs):
-        raise NotImplementedError("Please use a subclass of BaseSource")
+        raise NotImplementedError("Please use a subclass of Source")
 
     @abstractmethod
     def spectral_flux_density(self, w: jnp.ndarray, *args, **kwargs):
-        raise NotImplementedError("Please use a subclass of BaseSource")
+        raise NotImplementedError("Please use a subclass of Source")
 
 
 class StaticSource(Source):
@@ -104,6 +104,14 @@ class TransientSource(Source):
     @abstractmethod
     def max_phase(self):
         raise NotImplementedError("Subclasses must implement the max_phase method.")
+
+    @forward
+    def min_time(self, z, t0):
+        return t0 + flux.rest_to_observer_time(self.min_phase(), z)
+
+    @forward
+    def max_time(self, z, t0):
+        return t0 + flux.rest_to_observer_time(self.max_phase(), z)
 
     @forward
     def visible(self, t, t0, z):
