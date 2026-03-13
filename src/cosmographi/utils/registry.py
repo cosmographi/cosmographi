@@ -213,14 +213,14 @@ def load_data(
     if _relpath.endswith("/"):
         _relpath = _relpath[:-1]
 
-    # download the data to LOCAL_PATH + relpath if relpath does not exist
-    if not os.path.exists(_relpath):
+    abspath = os.path.join(get_local_root(), _relpath)
+
+    # download the data to LOCAL_PATH + relpath if abspath does not exist
+    if not os.path.exists(abspath):
         download_data(_relpath)
 
     # call the loading function with the path to the local directory where the data is located
-    args = fn(os.path.join(get_local_root(), _relpath))
-
-    return args
+    return fn(abspath)
 
 
 class Loadable:

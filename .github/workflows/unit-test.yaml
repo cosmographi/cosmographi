@@ -16,6 +16,8 @@ jobs:
       matrix:
         python-version:
           - "3.12"
+    env:
+      COSMOGRAPHI_CACHE_ROOT: ${{ github.workspace }}/.cache
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -32,8 +34,20 @@ jobs:
         env:
           # install into system and not venv
           UV_SYSTEM_PYTHON: 1
+      - name: Restore cached files
+        id: cached-files-restore
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ github.workspace }}/.cache
+          key: ${{ runner.os }}-files
       - name: Run tests
         run: pytest --cov=src tests/
+      - name: Save files
+        id: cache-files-save
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/.cache
+          key: ${{ steps.cached-files-restore.outputs.cache-primary-key }}
       - name: Run code cov
         uses: codecov/codecov-action@v5
         with:

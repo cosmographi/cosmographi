@@ -110,7 +110,10 @@ def test_loadable_and_local_override(tmp_path):
 
 
 def test_load_rubin_throughput(tmp_path, monkeypatch):
-    """Test that we can load remote data and pass into a Throughput_wAtmos constructor"""
+    """Test that we can load remote data and pass into a Throughput_wAtmos constructor.
+    Note that we're overriding the local root, so this will *always* download the remote data,
+    even when it's been cached (locally or in GHA).
+    """
     tmp_path = tmp_path / "data"
     tmp_path.mkdir()
     monkeypatch.setattr("cosmographi.utils.registry.get_local_root", lambda: tmp_path)
