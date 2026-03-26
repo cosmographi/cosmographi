@@ -46,7 +46,7 @@ def get_local_root() -> str:  # pragma: no cover
     return str(local_root)
 
 
-REMOTE_ROOT = "https://raw.githubusercontent.com/cosmographi/datasets/loader-test/data"
+REMOTE_ROOT = "https://raw.githubusercontent.com/cosmographi/cosmographi_datasets/main/data"
 
 
 def download_file(url: str, file_wrapper: IO[bytes]) -> IO[bytes]:

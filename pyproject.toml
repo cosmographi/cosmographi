@@ -109,4 +109,4 @@ line-ending = "auto"
 norecursedirs = "tests/utils"
 
 [tool.uv.sources]
-cosmographi-datasets = { git = "https://github.com/cosmographi/cosmographi_datasets", branch = "loader-test" }
+cosmographi-datasets = { git = "https://github.com/cosmographi/cosmographi_datasets", branch = "main" }
