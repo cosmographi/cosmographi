@@ -1,16 +1,14 @@
 import pytest
 import jax.numpy as jnp
 
-from cosmographi.throughput import RubinThroughput
+from cosmographi.throughput.base import Throughput_wAtmos
 from cosmographi.utils import flux
 
 
-def test_ABMag_consistency(benchmark):
+def test_ABMag_consistency():
     f = 3631 * 1e-23  # Convert Jy to erg/s/cm^2/Hz
 
-    benchmark(RubinThroughput)
-
-    throughput = RubinThroughput()
+    throughput = Throughput_wAtmos.load("rubin_throughput")
 
     # photons/s/cm^2 in each band computed using f_nu and f_lambda should be consistent
     for i in range(len(throughput.bands)):

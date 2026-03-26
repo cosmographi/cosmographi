@@ -3,6 +3,7 @@ from caskade import Module, Param, forward
 
 from ..utils.helpers import trim_and_pad_batch
 from ..utils import flux
+from ..utils.registry import Loadable
 
 
 class Throughput(Module):
@@ -67,7 +68,7 @@ class Throughput(Module):
         self._w, self._T = trim_and_pad_batch(self._w, self._T, threshold)
 
 
-class Throughput_wAtmos(Throughput):
+class Throughput_wAtmos(Throughput, Loadable):
     def __init__(
         self, bands, w_hardware, T_hardware, w_atmosphere, T_atmosphere, air_mass=1.0, name=None
     ):

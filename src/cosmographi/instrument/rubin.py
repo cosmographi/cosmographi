@@ -1,19 +1,20 @@
 import jax.numpy as jnp
 from .base import Instrument
-from ..throughput import Throughput, RubinThroughput
+from ..throughput import Throughput
+from ..throughput.base import Throughput_wAtmos
 from ..magsystem import MagSystem, MagAB
 
 
 class RubinObservatory(Instrument):
     def __init__(
         self,
-        throughput: Throughput = None,
-        mag_system: MagSystem = None,
+        throughput: Throughput | None = None,
+        mag_system: MagSystem | None = None,
         name=None,
         **kwargs,
     ):
         if throughput is None:
-            throughput = RubinThroughput()
+            throughput = Throughput_wAtmos.load("rubin_throughput")
         if mag_system is None:
             mag_system = MagAB(
                 throughput=throughput,
