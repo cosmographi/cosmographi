@@ -2,13 +2,14 @@
 Mock SN Ia population generation: true SALT2 light-curve parameters,
 true brightness, and simulated observational scatter.
 """
+
 import jax
 import jax.numpy as jnp
 
+
 def detection_probability(mu_obs, threshold, scale):
-        return 1.0 / (
-        1.0 + jnp.exp((mu_obs - threshold) / scale)
-    )
+    return 1.0 / (1.0 + jnp.exp((mu_obs - threshold) / scale))
+
 
 def simulate_salt2_population(
     key,
@@ -22,10 +23,10 @@ def simulate_salt2_population(
     M0=-19.3,
     sigma_x1_obs=0.3,
     sigma_c_obs=0.03,
-    ref=False
+    ref=False,
 ):
     """
-    Simulate 
+    Simulate
     - a population of supernovae with SALT2 light-curve parameters (x1, c)
     - true and observed peak brightness (mB)
     - the SALT2-reconstructed distance modulus for biascor and true population
@@ -63,7 +64,6 @@ def simulate_salt2_population(
 
     # For BiasCor population
     if ref:
-        
         # Population distributions for stretch (x1) and color (c)
         x1_true = 0.97 + 1.4 * jax.random.normal(k1, (N,))
         c_true = -0.05 + 0.05 * jax.random.normal(k2, (N,))
@@ -79,23 +79,19 @@ def simulate_salt2_population(
     # For true population
     else:
         c_symm = -0.05 + 0.04 * jax.random.normal(k1, (N,))
- 
-        skewness = jax.random.exponential(k2, (N,)) * 0.1
-        c_true = c_symm + skewness   # asymmetric, red-skewed
 
-        
+        skewness = jax.random.exponential(k2, (N,)) * 0.1
+        c_true = c_symm + skewness  # asymmetric, red-skewed
+
         is_young = jax.random.bernoulli(k3, p=0.5, shape=(N,))
         x1_young = 0.6 + 0.9 * jax.random.normal(k4, (N,))
-        x1_old   = -1.2 + 0.9 * jax.random.normal(k5, (N,))
+        x1_old = -1.2 + 0.9 * jax.random.normal(k5, (N,))
         x1_true = jnp.where(is_young, x1_young, x1_old)
 
         # True SALT2 brightness
         mB_true = (
-            mu_true
-            - alpha * x1_true
-            + beta * c_true
-            + M0
-            + sigma_int * jax.random.normal(k6, (N,)))
+            mu_true - alpha * x1_true + beta * c_true + M0 + sigma_int * jax.random.normal(k6, (N,))
+        )
 
     # Measurement noise
     key, kmB, kx1, kc = jax.random.split(key, 4)
@@ -120,4 +116,3 @@ def simulate_salt2_population(
         "mu_obs": mu_obs,
         "mu_true": mu_true,
     }
-

@@ -4,17 +4,7 @@ import jax
 
 jax.config.update("jax_enable_x64", True)
 
-from . import (
- 
-    biascor,
-    cosmology,
-    coverage_test,
-    ct_likelihood,
-    likelihood_setup,
-    lookup,
-    population
-
-)
+from . import biascor, cosmology, coverage_test, ct_likelihood, likelihood_setup, lookup, population
 from .grid_node import GRID_NODES
 
 __all__ = (
@@ -25,5 +15,5 @@ __all__ = (
     "likelihood_setup",
     "lookup",
     "population",
-    "GRID_NODES"
+    "GRID_NODES",
 )
